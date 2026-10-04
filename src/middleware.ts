@@ -14,8 +14,14 @@ export async function middleware(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
+        setAll(
+          cookiesToSet: {
+            name: string;
+            value: string;
+            options?: any;
+          }[]
+        ) {
+          cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           );
           response = NextResponse.next({ request });
@@ -41,7 +47,6 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    // Check if the user is a registered admin
     const { data: adminUser } = await supabase
       .from("admin_users")
       .select("id, role")
@@ -49,7 +54,6 @@ export async function middleware(request: NextRequest) {
       .maybeSingle();
 
     if (!adminUser) {
-      // Not an admin — sign them out
       await supabase.auth.signOut();
       const url = request.nextUrl.clone();
       url.pathname = "/admin/login";
@@ -58,7 +62,6 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // If already logged in and hitting /admin/login, redirect to /admin
   if (pathname === "/admin/login" && user) {
     const url = request.nextUrl.clone();
     url.pathname = "/admin";
