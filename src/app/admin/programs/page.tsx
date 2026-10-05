@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Plus, Search, Edit, Trash2, X, Save, Eye, EyeOff } from "lucide-react";
 import { ImageUpload } from "@/components/admin/ImageUpload";
+import { logClientActivity } from "@/lib/admin/client-activity";
 
 interface Program {
   id: string;
@@ -69,9 +70,7 @@ export default function ProgramsAdminPage() {
     setIsSaving(true);
     setError(null);
     const isNew = !editing.id;
-    const url = isNew
-      ? "/api/admin/programs"
-      : `/api/admin/programs/${editing.id}`;
+    const url = isNew ? "/api/admin/programs" : `/api/admin/programs/${editing.id}`;
     const res = await fetch(url, {
       method: isNew ? "POST" : "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -83,14 +82,32 @@ export default function ProgramsAdminPage() {
       setError(json.error || "Save failed");
       return;
     }
+
+    await logClientActivity({
+      action: isNew ? "create" : "update",
+      tableName: "programs",
+      recordId: json.data?.id,
+      recordSummary: `Program: ${editing.title}`,
+      changes: { title: editing.title, slug: editing.slug },
+    });
+
     setEditing(null);
     load();
   }
 
   async function remove(id: string) {
     if (!confirm("Delete this program?")) return;
+    const toDelete = programs.find((p) => p.id === id);
     const res = await fetch(`/api/admin/programs/${id}`, { method: "DELETE" });
-    if (res.ok) setPrograms(programs.filter((p) => p.id !== id));
+    if (res.ok) {
+      setPrograms(programs.filter((p) => p.id !== id));
+      await logClientActivity({
+        action: "delete",
+        tableName: "programs",
+        recordId: id,
+        recordSummary: `Program: ${toDelete?.title || id}`,
+      });
+    }
   }
 
   return (
@@ -128,18 +145,10 @@ export default function ProgramsAdminPage() {
             <thead className="bg-light">
               <tr>
                 <th className="text-left px-6 py-3 text-sm font-semibold">#</th>
-                <th className="text-left px-6 py-3 text-sm font-semibold">
-                  Title
-                </th>
-                <th className="text-left px-6 py-3 text-sm font-semibold">
-                  Slug
-                </th>
-                <th className="text-left px-6 py-3 text-sm font-semibold">
-                  Status
-                </th>
-                <th className="text-right px-6 py-3 text-sm font-semibold">
-                  Actions
-                </th>
+                <th className="text-left px-6 py-3 text-sm font-semibold">Title</th>
+                <th className="text-left px-6 py-3 text-sm font-semibold">Slug</th>
+                <th className="text-left px-6 py-3 text-sm font-semibold">Status</th>
+                <th className="text-right px-6 py-3 text-sm font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-light">
@@ -255,10 +264,7 @@ export default function ProgramsAdminPage() {
                   rows={4}
                   value={editing.long_description || ""}
                   onChange={(e) =>
-                    setEditing({
-                      ...editing,
-                      long_description: e.target.value,
-                    })
+                    setEditing({ ...editing, long_description: e.target.value })
                   }
                 />
               </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Mail, Send, Loader2, CheckCircle, XCircle } from "lucide-react";
+import { logClientActivity } from "@/lib/admin/client-activity";
 
 interface Newsletter {
   id: string;
@@ -19,7 +20,10 @@ export default function NewslettersAdminPage() {
   const [content, setContent] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [message, setMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
 
   useEffect(() => {
     load();
@@ -35,7 +39,10 @@ export default function NewslettersAdminPage() {
 
   async function handleSend(sendNow: boolean) {
     if (!subject.trim() || !content.trim()) {
-      setMessage({ type: "error", text: "Please fill in subject and content." });
+      setMessage({
+        type: "error",
+        text: "Please fill in subject and content.",
+      });
       return;
     }
 
@@ -52,6 +59,15 @@ export default function NewslettersAdminPage() {
       const json = await res.json();
 
       if (!res.ok) throw new Error(json.error || "Failed");
+
+      await logClientActivity({
+        action: "create",
+        tableName: "newsletters",
+        recordId: json.data?.id,
+        recordSummary: sendNow
+          ? `Sent newsletter: ${subject} (${json.data?.sent || 0} recipients)`
+          : `Draft saved: ${subject}`,
+      });
 
       if (sendNow) {
         setMessage({
@@ -76,7 +92,9 @@ export default function NewslettersAdminPage() {
     <div>
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-dark">Newsletters</h1>
-        <p className="text-dark/60 mt-1">Compose and send emails to all subscribers.</p>
+        <p className="text-dark/60 mt-1">
+          Compose and send emails to all subscribers.
+        </p>
       </div>
 
       {message && (
@@ -91,7 +109,6 @@ export default function NewslettersAdminPage() {
         </div>
       )}
 
-      {/* Composer */}
       <div className="card p-6 mb-8">
         <h2 className="font-bold text-lg mb-4">New Newsletter</h2>
 
@@ -113,10 +130,11 @@ export default function NewslettersAdminPage() {
               onChange={(e) => setContent(e.target.value)}
               rows={10}
               className="form-input resize-none"
-              placeholder="Write your newsletter here... You can use plain text with line breaks."
+              placeholder="Write your newsletter here..."
             />
             <p className="text-xs text-dark/50 mt-2">
-              Tip: Basic HTML tags like &lt;strong&gt; &lt;em&gt; &lt;a&gt; work too.
+              Tip: Basic HTML tags like &lt;strong&gt; &lt;em&gt; &lt;a&gt; work
+              too.
             </p>
           </div>
         </div>
@@ -128,9 +146,13 @@ export default function NewslettersAdminPage() {
             className="btn-primary"
           >
             {isSending ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> Sending...</>
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" /> Sending...
+              </>
             ) : (
-              <><Send className="w-4 h-4" /> Send to All Subscribers</>
+              <>
+                <Send className="w-4 h-4" /> Send to All Subscribers
+              </>
             )}
           </button>
           <button
@@ -143,7 +165,6 @@ export default function NewslettersAdminPage() {
         </div>
       </div>
 
-      {/* History */}
       <div>
         <h2 className="font-bold text-lg mb-4">Sent Newsletters</h2>
         {isLoading ? (
@@ -156,9 +177,14 @@ export default function NewslettersAdminPage() {
         ) : (
           <div className="space-y-3">
             {newsletters.map((n) => (
-              <div key={n.id} className="card p-4 flex items-center justify-between gap-4">
+              <div
+                key={n.id}
+                className="card p-4 flex items-center justify-between gap-4"
+              >
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-dark truncate">{n.subject}</p>
+                  <p className="font-semibold text-dark truncate">
+                    {n.subject}
+                  </p>
                   <p className="text-xs text-dark/60 mt-1">
                     {n.sent_at
                       ? `Sent ${new Date(n.sent_at).toLocaleDateString()} to ${n.recipient_count} subscribers`
@@ -166,9 +192,15 @@ export default function NewslettersAdminPage() {
                   </p>
                 </div>
                 <div>
-                  {n.status === "sent" && <CheckCircle className="w-5 h-5 text-green-500" />}
-                  {n.status === "failed" && <XCircle className="w-5 h-5 text-red-500" />}
-                  {n.status === "draft" && <span className="text-xs text-dark/50">Draft</span>}
+                  {n.status === "sent" && (
+                    <CheckCircle className="w-5 h-5 text-green-500" />
+                  )}
+                  {n.status === "failed" && (
+                    <XCircle className="w-5 h-5 text-red-500" />
+                  )}
+                  {n.status === "draft" && (
+                    <span className="text-xs text-dark/50">Draft</span>
+                  )}
                 </div>
               </div>
             ))}

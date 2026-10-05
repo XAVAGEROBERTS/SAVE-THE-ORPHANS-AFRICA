@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Plus, Edit, Trash2, X, Save } from "lucide-react";
+import { logClientActivity } from "@/lib/admin/client-activity";
 
 interface ImpactStat {
   id: string;
@@ -15,8 +16,13 @@ interface ImpactStat {
 }
 
 const empty: Partial<ImpactStat> = {
-  stat_key: "", label: "", value: 0, suffix: "+",
-  description: "", icon: "Star", display_order: 0,
+  stat_key: "",
+  label: "",
+  value: 0,
+  suffix: "+",
+  description: "",
+  icon: "Star",
+  display_order: 0,
 };
 
 export default function ImpactAdminPage() {
@@ -26,7 +32,9 @@ export default function ImpactAdminPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   async function load() {
     setIsLoading(true);
@@ -38,7 +46,8 @@ export default function ImpactAdminPage() {
 
   async function save() {
     if (!editing) return;
-    setIsSaving(true); setError(null);
+    setIsSaving(true);
+    setError(null);
     const isNew = !editing.id;
     const url = isNew ? "/api/admin/impact" : `/api/admin/impact/${editing.id}`;
     const res = await fetch(url, {
@@ -48,14 +57,36 @@ export default function ImpactAdminPage() {
     });
     const json = await res.json();
     setIsSaving(false);
-    if (!res.ok) { setError(json.error || "Save failed"); return; }
-    setEditing(null); load();
+    if (!res.ok) {
+      setError(json.error || "Save failed");
+      return;
+    }
+
+    await logClientActivity({
+      action: isNew ? "create" : "update",
+      tableName: "impact_stats",
+      recordId: json.data?.id,
+      recordSummary: `Stat: ${editing.label} = ${editing.value}${editing.suffix || ""}`,
+      changes: { label: editing.label, value: editing.value },
+    });
+
+    setEditing(null);
+    load();
   }
 
   async function remove(id: string) {
     if (!confirm("Delete this stat?")) return;
+    const toDelete = stats.find((s) => s.id === id);
     const res = await fetch(`/api/admin/impact/${id}`, { method: "DELETE" });
-    if (res.ok) setStats(stats.filter((s) => s.id !== id));
+    if (res.ok) {
+      setStats(stats.filter((s) => s.id !== id));
+      await logClientActivity({
+        action: "delete",
+        tableName: "impact_stats",
+        recordId: id,
+        recordSummary: `Stat: ${toDelete?.label || id}`,
+      });
+    }
   }
 
   return (
@@ -65,12 +96,17 @@ export default function ImpactAdminPage() {
           <h1 className="text-3xl font-bold text-dark">Impact Statistics</h1>
           <p className="text-dark/60 mt-1">{stats.length} stats</p>
         </div>
-        <button onClick={() => setEditing({ ...empty })} className="btn-primary text-sm">
+        <button
+          onClick={() => setEditing({ ...empty })}
+          className="btn-primary text-sm"
+        >
           <Plus className="w-4 h-4" /> New Stat
         </button>
       </div>
 
-      {isLoading ? <p className="text-dark/60">Loading...</p> : (
+      {isLoading ? (
+        <p className="text-dark/60">Loading...</p>
+      ) : (
         <div className="card overflow-hidden overflow-x-auto">
           <table className="w-full">
             <thead className="bg-light">
@@ -86,13 +122,26 @@ export default function ImpactAdminPage() {
               {stats.map((s) => (
                 <tr key={s.id} className="hover:bg-light/50">
                   <td className="px-6 py-4 text-sm text-dark/60">{s.display_order}</td>
-                  <td className="px-6 py-4 text-sm font-bold text-primary">{s.value}{s.suffix}</td>
+                  <td className="px-6 py-4 text-sm font-bold text-primary">
+                    {s.value}
+                    {s.suffix}
+                  </td>
                   <td className="px-6 py-4 text-sm text-dark">{s.label}</td>
                   <td className="px-6 py-4 text-sm text-dark/60">{s.icon}</td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex gap-2 justify-end">
-                      <button onClick={() => setEditing(s)} className="p-2 rounded hover:bg-primary/10 text-primary"><Edit className="w-4 h-4" /></button>
-                      <button onClick={() => remove(s.id)} className="p-2 rounded hover:bg-red-50 text-red-600"><Trash2 className="w-4 h-4" /></button>
+                      <button
+                        onClick={() => setEditing(s)}
+                        className="p-2 rounded hover:bg-primary/10 text-primary"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => remove(s.id)}
+                        className="p-2 rounded hover:bg-red-50 text-red-600"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -104,51 +153,127 @@ export default function ImpactAdminPage() {
 
       {editing && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold">{editing.id ? "Edit Stat" : "New Stat"}</h2>
-              <button onClick={() => setEditing(null)} className="p-2 hover:bg-light rounded"><X className="w-5 h-5" /></button>
+              <h2 className="text-xl font-bold">
+                {editing.id ? "Edit Stat" : "New Stat"}
+              </h2>
+              <button
+                onClick={() => setEditing(null)}
+                className="p-2 hover:bg-light rounded"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            {error && <p className="text-red-600 text-sm mb-4 p-3 bg-red-50 rounded">{error}</p>}
+            {error && (
+              <p className="text-red-600 text-sm mb-4 p-3 bg-red-50 rounded">
+                {error}
+              </p>
+            )}
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="form-label">Key (unique)</label>
-                  <input className="form-input" value={editing.stat_key || ""} onChange={(e) => setEditing({ ...editing, stat_key: e.target.value })} placeholder="children" />
+                  <input
+                    className="form-input"
+                    value={editing.stat_key || ""}
+                    onChange={(e) =>
+                      setEditing({ ...editing, stat_key: e.target.value })
+                    }
+                    placeholder="children"
+                  />
                 </div>
                 <div>
                   <label className="form-label">Icon</label>
-                  <input className="form-input" value={editing.icon || ""} onChange={(e) => setEditing({ ...editing, icon: e.target.value })} placeholder="Users" />
+                  <input
+                    className="form-input"
+                    value={editing.icon || ""}
+                    onChange={(e) =>
+                      setEditing({ ...editing, icon: e.target.value })
+                    }
+                    placeholder="Users"
+                  />
                 </div>
               </div>
               <div>
                 <label className="form-label">Label</label>
-                <input className="form-input" value={editing.label || ""} onChange={(e) => setEditing({ ...editing, label: e.target.value })} />
+                <input
+                  className="form-input"
+                  value={editing.label || ""}
+                  onChange={(e) =>
+                    setEditing({ ...editing, label: e.target.value })
+                  }
+                />
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="form-label">Value</label>
-                  <input className="form-input" type="number" value={editing.value || 0} onChange={(e) => setEditing({ ...editing, value: parseInt(e.target.value) || 0 })} />
+                  <input
+                    className="form-input"
+                    type="number"
+                    value={editing.value || 0}
+                    onChange={(e) =>
+                      setEditing({
+                        ...editing,
+                        value: parseInt(e.target.value) || 0,
+                      })
+                    }
+                  />
                 </div>
                 <div>
                   <label className="form-label">Suffix</label>
-                  <input className="form-input" value={editing.suffix || ""} onChange={(e) => setEditing({ ...editing, suffix: e.target.value })} placeholder="+" />
+                  <input
+                    className="form-input"
+                    value={editing.suffix || ""}
+                    onChange={(e) =>
+                      setEditing({ ...editing, suffix: e.target.value })
+                    }
+                    placeholder="+"
+                  />
                 </div>
                 <div>
                   <label className="form-label">Order</label>
-                  <input className="form-input" type="number" value={editing.display_order || 0} onChange={(e) => setEditing({ ...editing, display_order: parseInt(e.target.value) || 0 })} />
+                  <input
+                    className="form-input"
+                    type="number"
+                    value={editing.display_order || 0}
+                    onChange={(e) =>
+                      setEditing({
+                        ...editing,
+                        display_order: parseInt(e.target.value) || 0,
+                      })
+                    }
+                  />
                 </div>
               </div>
               <div>
                 <label className="form-label">Description</label>
-                <input className="form-input" value={editing.description || ""} onChange={(e) => setEditing({ ...editing, description: e.target.value })} />
+                <input
+                  className="form-input"
+                  value={editing.description || ""}
+                  onChange={(e) =>
+                    setEditing({ ...editing, description: e.target.value })
+                  }
+                />
               </div>
             </div>
             <div className="flex gap-3 mt-6 pt-6 border-t border-light">
-              <button onClick={save} disabled={isSaving} className="btn-primary flex-1">
-                {isSaving ? "Saving..." : <><Save className="w-4 h-4" /> Save</>}
+              <button
+                onClick={save}
+                disabled={isSaving}
+                className="btn-primary flex-1"
+              >
+                {isSaving ? (
+                  "Saving..."
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" /> Save
+                  </>
+                )}
               </button>
-              <button onClick={() => setEditing(null)} className="btn-ghost">Cancel</button>
+              <button onClick={() => setEditing(null)} className="btn-ghost">
+                Cancel
+              </button>
             </div>
           </div>
         </div>

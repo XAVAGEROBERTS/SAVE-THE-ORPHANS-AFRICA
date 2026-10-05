@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { Plus, Edit, Trash2, X, Save } from "lucide-react";
 import { ImageUpload } from "@/components/admin/ImageUpload";
+import { logClientActivity } from "@/lib/admin/client-activity";
 
 interface GalleryImage {
   id: string;
@@ -46,9 +47,7 @@ export default function GalleryAdminPage() {
     setIsSaving(true);
     setError(null);
     const isNew = !editing.id;
-    const url = isNew
-      ? "/api/admin/gallery"
-      : `/api/admin/gallery/${editing.id}`;
+    const url = isNew ? "/api/admin/gallery" : `/api/admin/gallery/${editing.id}`;
     const res = await fetch(url, {
       method: isNew ? "POST" : "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -60,14 +59,32 @@ export default function GalleryAdminPage() {
       setError(json.error || "Save failed");
       return;
     }
+
+    await logClientActivity({
+      action: isNew ? "create" : "update",
+      tableName: "gallery_images",
+      recordId: json.data?.id,
+      recordSummary: `Image: ${editing.alt_text}`,
+      changes: { alt: editing.alt_text, category: editing.category },
+    });
+
     setEditing(null);
     load();
   }
 
   async function remove(id: string) {
     if (!confirm("Delete this image?")) return;
+    const toDelete = images.find((i) => i.id === id);
     const res = await fetch(`/api/admin/gallery/${id}`, { method: "DELETE" });
-    if (res.ok) setImages(images.filter((i) => i.id !== id));
+    if (res.ok) {
+      setImages(images.filter((i) => i.id !== id));
+      await logClientActivity({
+        action: "delete",
+        tableName: "gallery_images",
+        recordId: id,
+        recordSummary: `Image: ${toDelete?.alt_text || id}`,
+      });
+    }
   }
 
   return (

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Plus, Edit, Trash2, X, Save, Quote } from "lucide-react";
 import { ImageUpload } from "@/components/admin/ImageUpload";
+import { logClientActivity } from "@/lib/admin/client-activity";
 
 interface Testimonial {
   id: string;
@@ -46,35 +47,49 @@ export default function TestimonialsAdminPage() {
     if (!editing) return;
     setIsSaving(true);
     setError(null);
-
     const isNew = !editing.id;
     const url = isNew
       ? "/api/admin/testimonials"
       : `/api/admin/testimonials/${editing.id}`;
-
     const res = await fetch(url, {
       method: isNew ? "POST" : "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(editing),
     });
-
     const json = await res.json();
     setIsSaving(false);
-
     if (!res.ok) {
       setError(json.error || "Save failed");
       return;
     }
+
+    await logClientActivity({
+      action: isNew ? "create" : "update",
+      tableName: "testimonials",
+      recordId: json.data?.id,
+      recordSummary: `Testimonial by ${editing.author_name}`,
+      changes: { author: editing.author_name },
+    });
+
     setEditing(null);
     load();
   }
 
   async function remove(id: string) {
     if (!confirm("Delete this testimonial?")) return;
+    const toDelete = items.find((i) => i.id === id);
     const res = await fetch(`/api/admin/testimonials/${id}`, {
       method: "DELETE",
     });
-    if (res.ok) setItems(items.filter((i) => i.id !== id));
+    if (res.ok) {
+      setItems(items.filter((i) => i.id !== id));
+      await logClientActivity({
+        action: "delete",
+        tableName: "testimonials",
+        recordId: id,
+        recordSummary: `Testimonial by ${toDelete?.author_name || id}`,
+      });
+    }
   }
 
   return (

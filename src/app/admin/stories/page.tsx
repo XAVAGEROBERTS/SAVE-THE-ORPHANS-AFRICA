@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Plus, Search, Edit, Trash2, X, Save } from "lucide-react";
 import { ImageUpload } from "@/components/admin/ImageUpload";
+import { logClientActivity } from "@/lib/admin/client-activity";
 
 interface Story {
   id: string;
@@ -64,9 +65,7 @@ export default function StoriesAdminPage() {
     setIsSaving(true);
     setError(null);
     const isNew = !editing.id;
-    const url = isNew
-      ? "/api/admin/stories"
-      : `/api/admin/stories/${editing.id}`;
+    const url = isNew ? "/api/admin/stories" : `/api/admin/stories/${editing.id}`;
     const res = await fetch(url, {
       method: isNew ? "POST" : "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -78,14 +77,32 @@ export default function StoriesAdminPage() {
       setError(json.error || "Save failed");
       return;
     }
+
+    await logClientActivity({
+      action: isNew ? "create" : "update",
+      tableName: "stories",
+      recordId: json.data?.id,
+      recordSummary: `Story: ${editing.title}`,
+      changes: { title: editing.title, slug: editing.slug },
+    });
+
     setEditing(null);
     load();
   }
 
   async function remove(id: string) {
     if (!confirm("Delete this story?")) return;
+    const toDelete = stories.find((s) => s.id === id);
     const res = await fetch(`/api/admin/stories/${id}`, { method: "DELETE" });
-    if (res.ok) setStories(stories.filter((s) => s.id !== id));
+    if (res.ok) {
+      setStories(stories.filter((s) => s.id !== id));
+      await logClientActivity({
+        action: "delete",
+        tableName: "stories",
+        recordId: id,
+        recordSummary: `Story: ${toDelete?.title || id}`,
+      });
+    }
   }
 
   return (
@@ -122,21 +139,11 @@ export default function StoriesAdminPage() {
           <table className="w-full">
             <thead className="bg-light">
               <tr>
-                <th className="text-left px-6 py-3 text-sm font-semibold">
-                  Title
-                </th>
-                <th className="text-left px-6 py-3 text-sm font-semibold">
-                  Category
-                </th>
-                <th className="text-left px-6 py-3 text-sm font-semibold">
-                  Author
-                </th>
-                <th className="text-left px-6 py-3 text-sm font-semibold">
-                  Status
-                </th>
-                <th className="text-right px-6 py-3 text-sm font-semibold">
-                  Actions
-                </th>
+                <th className="text-left px-6 py-3 text-sm font-semibold">Title</th>
+                <th className="text-left px-6 py-3 text-sm font-semibold">Category</th>
+                <th className="text-left px-6 py-3 text-sm font-semibold">Author</th>
+                <th className="text-left px-6 py-3 text-sm font-semibold">Status</th>
+                <th className="text-right px-6 py-3 text-sm font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-light">
