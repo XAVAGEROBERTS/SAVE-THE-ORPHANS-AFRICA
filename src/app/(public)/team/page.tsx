@@ -82,13 +82,7 @@ export default async function TeamPage() {
         <section className="section-padding bg-white">
           <div className="container-custom">
             <div className="text-center mb-12">
-              <h2 className="section-title flex items-center justify-center gap-3">
-                Founders
-                <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600 bg-green-50 px-2.5 py-1 rounded-full">
-                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-                  Live
-                </span>
-              </h2>
+              <h2 className="section-title">Founders</h2>
               <p className="section-subtitle">
                 The visionaries who started Save the Orphans Africa.
               </p>
@@ -102,13 +96,7 @@ export default async function TeamPage() {
         <section className="section-padding bg-light">
           <div className="container-custom">
             <div className="text-center mb-12">
-              <h2 className="section-title flex items-center justify-center gap-3">
-                Our Team
-                <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600 bg-green-50 px-2.5 py-1 rounded-full">
-                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-                  Live
-                </span>
-              </h2>
+              <h2 className="section-title">Our Team</h2>
               <p className="section-subtitle">
                 Dedicated staff and volunteers who make our work possible.
               </p>

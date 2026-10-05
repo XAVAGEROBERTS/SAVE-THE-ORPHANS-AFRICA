@@ -50,13 +50,7 @@ export function RealtimeImpactStats({
     <section className="section-padding bg-light">
       <div className="container-custom">
         <div className="text-center mb-12">
-          <h2 className="section-title flex items-center justify-center gap-3">
-            Our Impact
-            <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600 bg-green-50 px-2.5 py-1 rounded-full">
-              <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-              Live
-            </span>
-          </h2>
+          <h2 className="section-title">Our Impact</h2>
           <p className="section-subtitle">
             Real numbers. Real change. Every statistic represents a child whose
             life has been transformed.

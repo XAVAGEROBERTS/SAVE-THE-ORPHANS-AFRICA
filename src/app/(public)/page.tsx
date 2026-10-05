@@ -9,8 +9,8 @@ import {
 } from "lucide-react";
 import { Hero } from "@/components/Hero/Hero";
 import { RealtimeImpactStats } from "@/components/ImpactStats/RealtimeImpactStats";
-import { ProgramCard } from "@/components/ProgramCard/ProgramCard";
-import { StoryCard } from "@/components/StoryCard/StoryCard";
+import { RealtimeProgramsGrid } from "@/components/ProgramCard/RealtimeProgramsGrid";
+import { RealtimeStoriesGrid } from "@/components/StoryCard/RealtimeStoriesGrid";
 import { Testimonial } from "@/components/Testimonial/Testimonial";
 import { RealtimeTeamGrid } from "@/components/Team/RealtimeTeamGrid";
 import {
@@ -33,7 +33,6 @@ export default async function HomePage() {
       <Hero />
       <RealtimeImpactStats initialStats={impactStats} />
 
-      {/* Mission Section */}
       <section className="section-padding bg-white">
         <div className="container-custom">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
@@ -108,7 +107,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Programs Section */}
       <section className="section-padding bg-light">
         <div className="container-custom">
           <div className="text-center mb-12">
@@ -121,25 +119,14 @@ export default async function HomePage() {
               child&apos;s development.
             </p>
           </div>
-          {programs.length === 0 ? (
-            <p className="text-center text-dark/60">No programs yet.</p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {programs.slice(0, 3).map((program) => (
-                <ProgramCard key={program.id} program={program} />
-              ))}
-            </div>
-          )}
-          <div className="text-center mt-10">
-            <Link href="/programs" className="btn-primary">
-              View All Programs
-              <ArrowRight className="w-5 h-5" />
-            </Link>
-          </div>
+          <RealtimeProgramsGrid
+            initialPrograms={programs}
+            limit={3}
+            showCTA={true}
+          />
         </div>
       </section>
 
-      {/* Stories Section */}
       <section className="section-padding bg-white">
         <div className="container-custom">
           <div className="text-center mb-12">
@@ -152,25 +139,14 @@ export default async function HomePage() {
               we serve.
             </p>
           </div>
-          {stories.length === 0 ? (
-            <p className="text-center text-dark/60">No stories yet.</p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {stories.slice(0, 4).map((story) => (
-                <StoryCard key={story.id} story={story} />
-              ))}
-            </div>
-          )}
-          <div className="text-center mt-10">
-            <Link href="/stories" className="btn-ghost">
-              Read All Stories
-              <ArrowRight className="w-5 h-5" />
-            </Link>
-          </div>
+          <RealtimeStoriesGrid
+            initialStories={stories}
+            limit={4}
+            showCTA={true}
+          />
         </div>
       </section>
 
-      {/* Meet the Team Section */}
       {team.length > 0 && (
         <section className="section-padding bg-light">
           <div className="container-custom">
@@ -178,29 +154,18 @@ export default async function HomePage() {
               <span className="text-gold font-semibold text-sm tracking-wider uppercase">
                 Our People
               </span>
-              <h2 className="section-title mt-2 flex items-center justify-center gap-3">
-                Meet the Founders
-                <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600 bg-green-50 px-2.5 py-1 rounded-full">
-                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-                  Live
-                </span>
-              </h2>
+              <h2 className="section-title mt-2">Meet the Founders</h2>
               <p className="section-subtitle">
                 Real people committed to real change for vulnerable children.
               </p>
             </div>
-            <RealtimeTeamGrid
-              initialMembers={team}
-              limit={3}
-              showCTA={true}
-            />
+            <RealtimeTeamGrid initialMembers={team} limit={3} showCTA={true} />
           </div>
         </section>
       )}
 
       <Testimonial />
 
-      {/* How You Can Help */}
       <section className="section-padding bg-white">
         <div className="container-custom">
           <div className="text-center mb-12">
@@ -257,7 +222,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Final CTA */}
       <section className="section-padding bg-primary">
         <div className="container-custom text-center">
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4">
