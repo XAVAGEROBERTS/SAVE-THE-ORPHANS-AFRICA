@@ -1,116 +1,152 @@
-import Link from "next/link";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { Check, AlertCircle, Heart, Home } from "lucide-react";
+"use client";
 
-export default async function UnsubscribePage({
-  searchParams,
-}: {
-  searchParams: Promise<{ token?: string }>;
-}) {
-  const { token } = await searchParams;
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { Check, AlertCircle, Heart, Home, Loader2 } from "lucide-react";
 
-  // ----- No token -----
-  if (!token) {
-    return (
-      <section className="section-padding bg-light min-h-[60vh] flex items-center">
-        <div className="container-custom max-w-lg text-center">
-          <div className="card p-8">
-            <AlertCircle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold mb-3">Invalid Link</h1>
-            <p className="text-dark/70 mb-6">
-              This unsubscribe link is missing or invalid.
-            </p>
-            <Link
-              href="/"
-              prefetch={true}
-              className="btn-primary inline-flex items-center gap-2"
-            >
-              <Home className="w-4 h-4" />
-              Return Home
-            </Link>
-          </div>
-        </div>
-      </section>
-    );
-  }
+export default function UnsubscribePage() {
+  const router = useRouter();
+  const [status, setStatus] = useState<"loading" | "success" | "not_found" | "invalid">("loading");
+  const [email, setEmail] = useState("");
+  const [isNavigating, setIsNavigating] = useState(false);
 
-  // ----- Lookup subscriber -----
-  const supabase = createAdminClient();
+  useEffect(() => {
+    async function process() {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get("token");
 
-  const { data: subscriber } = await supabase
-    .from("subscribers")
-    .select("id, email")
-    .eq("unsubscribe_token", token)
-    .maybeSingle();
+      if (!token) {
+        setStatus("invalid");
+        return;
+      }
 
-  // ----- Token not found -----
-  if (!subscriber) {
-    return (
-      <section className="section-padding bg-light min-h-[60vh] flex items-center">
-        <div className="container-custom max-w-lg text-center">
-          <div className="card p-8">
-            <AlertCircle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold mb-3">Not Found</h1>
-            <p className="text-dark/70 mb-6">
-              We couldn&apos;t find this subscription. It may have already been
-              unsubscribed.
-            </p>
-            <Link
-              href="/"
-              prefetch={true}
-              className="btn-primary inline-flex items-center gap-2"
-            >
-              <Home className="w-4 h-4" />
-              Return Home
-            </Link>
-          </div>
-        </div>
-      </section>
-    );
-  }
+      try {
+        const supabase = createClient();
 
-  // ----- Mark as unsubscribed -----
-  await supabase
-    .from("subscribers")
-    .update({
-      is_active: false,
-      unsubscribed_at: new Date().toISOString(),
-    })
-    .eq("id", subscriber.id);
+        const { data: subscriber } = await supabase
+          .from("subscribers")
+          .select("id, email")
+          .eq("unsubscribe_token", token)
+          .maybeSingle();
 
-  // ----- Success -----
+        if (!subscriber) {
+          setStatus("not_found");
+          return;
+        }
+
+        await supabase
+          .from("subscribers")
+          .update({
+            is_active: false,
+            unsubscribed_at: new Date().toISOString(),
+          })
+          .eq("id", subscriber.id);
+
+        setEmail(subscriber.email);
+        setStatus("success");
+      } catch {
+        setStatus("not_found");
+      }
+    }
+    process();
+  }, []);
+
+  const handleReturnHome = () => {
+    setIsNavigating(true);
+    router.push("/");
+  };
+
   return (
     <section className="section-padding bg-light min-h-[60vh] flex items-center">
       <div className="container-custom max-w-lg text-center">
         <div className="card p-8">
-          <Check className="w-12 h-12 text-primary mx-auto mb-4" />
-          <h1 className="text-2xl font-bold mb-3">
-            You&apos;ve Been Unsubscribed
-          </h1>
-          <p className="text-dark/70 mb-2">{subscriber.email}</p>
-          <p className="text-dark/60 text-sm mb-8">
-            You will no longer receive newsletter emails from us. You can
-            re-subscribe anytime from our website.
-          </p>
+          {status === "loading" && (
+            <>
+              <Loader2 className="w-12 h-12 text-primary mx-auto mb-4 animate-spin" />
+              <h1 className="text-2xl font-bold mb-3">Processing...</h1>
+              <p className="text-dark/70">Please wait a moment.</p>
+            </>
+          )}
 
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link
-              href="/"
-              prefetch={true}
-              className="btn-primary inline-flex items-center justify-center gap-2"
-            >
-              <Home className="w-4 h-4" />
-              Return Home
-            </Link>
-            <Link
-              href="/"
-              prefetch={true}
-              className="btn-ghost inline-flex items-center justify-center gap-2"
-            >
-              <Heart className="w-4 h-4" fill="currentColor" />
-              Back to Website
-            </Link>
-          </div>
+          {status === "invalid" && (
+            <>
+              <AlertCircle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
+              <h1 className="text-2xl font-bold mb-3">Invalid Link</h1>
+              <p className="text-dark/70 mb-6">
+                This unsubscribe link is missing or invalid.
+              </p>
+            </>
+          )}
+
+          {status === "not_found" && (
+            <>
+              <AlertCircle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
+              <h1 className="text-2xl font-bold mb-3">Not Found</h1>
+              <p className="text-dark/70 mb-6">
+                We couldn&apos;t find this subscription. It may have already been
+                unsubscribed.
+              </p>
+            </>
+          )}
+
+          {status === "success" && (
+            <>
+              <Check className="w-12 h-12 text-primary mx-auto mb-4" />
+              <h1 className="text-2xl font-bold mb-3">
+                You&apos;ve Been Unsubscribed
+              </h1>
+              <p className="text-dark/70 mb-2">{email}</p>
+              <p className="text-dark/60 text-sm mb-8">
+                You will no longer receive newsletter emails from us. You can
+                re-subscribe anytime from our website.
+              </p>
+            </>
+          )}
+
+          {(status === "success" ||
+            status === "not_found" ||
+            status === "invalid") && (
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button
+                onClick={handleReturnHome}
+                disabled={isNavigating}
+                className="btn-primary inline-flex items-center justify-center gap-2 min-w-[180px]"
+              >
+                {isNavigating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  <>
+                    <Home className="w-4 h-4" />
+                    Return Home
+                  </>
+                )}
+              </button>
+
+              {status === "success" && (
+                <button
+                  onClick={handleReturnHome}
+                  disabled={isNavigating}
+                  className="btn-ghost inline-flex items-center justify-center gap-2 min-w-[180px]"
+                >
+                  {isNavigating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Loading...
+                    </>
+                  ) : (
+                    <>
+                      <Heart className="w-4 h-4" fill="currentColor" />
+                      Back to Website
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </section>
