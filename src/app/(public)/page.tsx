@@ -1,23 +1,37 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, Heart, Users, HandHeart, Building } from "lucide-react";
+import {
+  ArrowRight,
+  Heart,
+  Users,
+  HandHeart,
+  Building,
+} from "lucide-react";
 import { Hero } from "@/components/Hero/Hero";
-import { ImpactStats } from "@/components/ImpactStats/ImpactStats";
+import { RealtimeImpactStats } from "@/components/ImpactStats/RealtimeImpactStats";
 import { ProgramCard } from "@/components/ProgramCard/ProgramCard";
 import { StoryCard } from "@/components/StoryCard/StoryCard";
 import { Testimonial } from "@/components/Testimonial/Testimonial";
-import { getPrograms, getStories } from "@/lib/supabase/queries";
+import { RealtimeTeamGrid } from "@/components/Team/RealtimeTeamGrid";
+import {
+  getPrograms,
+  getStories,
+  getTeamMembers,
+  getImpactStats,
+} from "@/lib/supabase/queries";
 
 export const revalidate = 60;
 
 export default async function HomePage() {
   const programs = await getPrograms();
   const stories = await getStories();
+  const team = await getTeamMembers();
+  const impactStats = await getImpactStats();
 
   return (
     <>
       <Hero />
-      <ImpactStats />
+      <RealtimeImpactStats initialStats={impactStats} />
 
       {/* Mission Section */}
       <section className="section-padding bg-white">
@@ -64,7 +78,10 @@ export default async function HomePage() {
                   />
                 </div>
                 <div className="bg-primary rounded-2xl p-6 text-white">
-                  <Heart className="w-8 h-8 text-gold mb-3" fill="currentColor" />
+                  <Heart
+                    className="w-8 h-8 text-gold mb-3"
+                    fill="currentColor"
+                  />
                   <p className="font-bold text-2xl">10+ Years</p>
                   <p className="text-white/70 text-sm">of dedicated service</p>
                 </div>
@@ -100,8 +117,8 @@ export default async function HomePage() {
             </span>
             <h2 className="section-title mt-2">Our Programs</h2>
             <p className="section-subtitle">
-              Comprehensive support that addresses every aspect of a child&apos;s
-              development.
+              Comprehensive support that addresses every aspect of a
+              child&apos;s development.
             </p>
           </div>
           {programs.length === 0 ? (
@@ -153,10 +170,38 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* Meet the Team Section */}
+      {team.length > 0 && (
+        <section className="section-padding bg-light">
+          <div className="container-custom">
+            <div className="text-center mb-12">
+              <span className="text-gold font-semibold text-sm tracking-wider uppercase">
+                Our People
+              </span>
+              <h2 className="section-title mt-2 flex items-center justify-center gap-3">
+                Meet the Founders
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600 bg-green-50 px-2.5 py-1 rounded-full">
+                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+                  Live
+                </span>
+              </h2>
+              <p className="section-subtitle">
+                Real people committed to real change for vulnerable children.
+              </p>
+            </div>
+            <RealtimeTeamGrid
+              initialMembers={team}
+              limit={3}
+              showCTA={true}
+            />
+          </div>
+        </section>
+      )}
+
       <Testimonial />
 
       {/* How You Can Help */}
-      <section className="section-padding bg-light">
+      <section className="section-padding bg-white">
         <div className="container-custom">
           <div className="text-center mb-12">
             <span className="text-gold font-semibold text-sm tracking-wider uppercase">
@@ -164,8 +209,8 @@ export default async function HomePage() {
             </span>
             <h2 className="section-title mt-2">How You Can Help</h2>
             <p className="section-subtitle">
-              There are many ways to make a difference in the lives of vulnerable
-              children.
+              There are many ways to make a difference in the lives of
+              vulnerable children.
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -219,15 +264,18 @@ export default async function HomePage() {
             Ready to Make a Difference?
           </h2>
           <p className="text-lg text-white/80 max-w-2xl mx-auto mb-8">
-            Your generosity can transform a child&apos;s life. Every donation, no
-            matter the size, creates ripples of hope and opportunity.
+            Your generosity can transform a child&apos;s life. Every donation,
+            no matter the size, creates ripples of hope and opportunity.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/donate" className="btn-secondary text-lg px-8 py-4">
               <Heart className="w-5 h-5" fill="currentColor" />
               Donate Now
             </Link>
-            <Link href="/get-involved" className="btn-outline text-lg px-8 py-4">
+            <Link
+              href="/get-involved"
+              className="btn-outline text-lg px-8 py-4"
+            >
               Other Ways to Help
             </Link>
           </div>

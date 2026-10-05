@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
-import { Heart, Mail, Linkedin, Users } from "lucide-react";
+import { Heart, Users } from "lucide-react";
 import { createStaticClient } from "@/lib/supabase/static";
+import { RealtimeTeamGrid } from "@/components/Team/RealtimeTeamGrid";
 
 export const metadata: Metadata = {
   title: "Meet Our Team",
@@ -47,7 +47,6 @@ export default async function TeamPage() {
 
   return (
     <>
-      {/* Hero */}
       <section className="relative pt-32 pb-16 bg-[#0B3D2E]">
         <div className="container-custom relative z-10 text-center">
           <span className="text-gold font-semibold text-sm tracking-wider uppercase">
@@ -63,7 +62,6 @@ export default async function TeamPage() {
         </div>
       </section>
 
-      {/* Trust Statement */}
       <section className="py-12 bg-cream">
         <div className="container-custom">
           <div className="max-w-3xl mx-auto text-center">
@@ -80,57 +78,55 @@ export default async function TeamPage() {
         </div>
       </section>
 
-      {/* Founders */}
       {founders.length > 0 && (
         <section className="section-padding bg-white">
           <div className="container-custom">
             <div className="text-center mb-12">
-              <h2 className="section-title">Founders</h2>
+              <h2 className="section-title flex items-center justify-center gap-3">
+                Founders
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600 bg-green-50 px-2.5 py-1 rounded-full">
+                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+                  Live
+                </span>
+              </h2>
               <p className="section-subtitle">
                 The visionaries who started Save the Orphans Africa.
               </p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-5xl mx-auto">
-              {founders.map((member) => (
-                <TeamCard key={member.id} member={member} />
-              ))}
-            </div>
+            <RealtimeTeamGrid initialMembers={founders} />
           </div>
         </section>
       )}
 
-      {/* Other Team Members */}
       {others.length > 0 && (
         <section className="section-padding bg-light">
           <div className="container-custom">
             <div className="text-center mb-12">
-              <h2 className="section-title">Our Team</h2>
+              <h2 className="section-title flex items-center justify-center gap-3">
+                Our Team
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600 bg-green-50 px-2.5 py-1 rounded-full">
+                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+                  Live
+                </span>
+              </h2>
               <p className="section-subtitle">
                 Dedicated staff and volunteers who make our work possible.
               </p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-5xl mx-auto">
-              {others.map((member) => (
-                <TeamCard key={member.id} member={member} />
-              ))}
-            </div>
+            <RealtimeTeamGrid initialMembers={others} />
           </div>
         </section>
       )}
 
-      {/* Empty State */}
       {members.length === 0 && (
         <section className="section-padding bg-white">
           <div className="container-custom text-center py-12">
             <Users className="w-16 h-16 text-dark/20 mx-auto mb-4" />
-            <p className="text-dark/60">
-              Team information coming soon.
-            </p>
+            <p className="text-dark/60">Team information coming soon.</p>
           </div>
         </section>
       )}
 
-      {/* Trust CTA */}
       <section className="section-padding bg-primary">
         <div className="container-custom text-center">
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
@@ -152,67 +148,5 @@ export default async function TeamPage() {
         </div>
       </section>
     </>
-  );
-}
-
-function TeamCard({ member }: { member: TeamMember }) {
-  return (
-    <div className="card overflow-hidden group">
-      <div className="relative aspect-square bg-light">
-        {member.image_url ? (
-          <Image
-            src={member.image_url}
-            alt={member.name}
-            fill
-            className="object-cover group-hover:scale-105 transition-transform duration-500"
-            sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-            unoptimized
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-primary/10">
-            <Users className="w-16 h-16 text-primary/40" />
-          </div>
-        )}
-        {member.is_founder && (
-          <div className="absolute top-3 right-3 bg-gold text-dark text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full">
-            Founder
-          </div>
-        )}
-      </div>
-      <div className="p-6">
-        <h3 className="font-bold text-lg text-dark mb-1">{member.name}</h3>
-        <p className="text-sm text-primary font-semibold mb-3">
-          {member.role}
-        </p>
-        <p className="text-sm text-dark/70 leading-relaxed">
-          {member.bio}
-        </p>
-
-        {(member.email || member.linkedin_url) && (
-          <div className="flex gap-2 mt-4 pt-4 border-t border-light">
-            {member.email && (
-              <a
-                href={`mailto:${member.email}`}
-                className="w-9 h-9 rounded-full bg-light flex items-center justify-center hover:bg-primary hover:text-white transition-colors"
-                aria-label={`Email ${member.name}`}
-              >
-                <Mail className="w-4 h-4" />
-              </a>
-            )}
-            {member.linkedin_url && (
-              <a
-                href={member.linkedin_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-9 h-9 rounded-full bg-light flex items-center justify-center hover:bg-primary hover:text-white transition-colors"
-                aria-label={`${member.name} on LinkedIn`}
-              >
-                <Linkedin className="w-4 h-4" />
-              </a>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
   );
 }

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Plus, Edit, Trash2, X, Save, Users } from "lucide-react";
 import { ImageUpload } from "@/components/admin/ImageUpload";
 import { logClientActivity } from "@/lib/admin/client-activity";
+import { useRealtimeTable } from "@/hooks/useRealtimeTable";
 
 interface TeamMember {
   id: string;
@@ -31,23 +32,14 @@ const empty: Partial<TeamMember> = {
 };
 
 export default function TeamAdminPage() {
-  const [members, setMembers] = useState<TeamMember[]>([]);
+  const { data: members, isLoading } = useRealtimeTable<TeamMember>({
+    table: "team_members",
+    orderBy: { column: "display_order", ascending: true },
+  });
+
   const [editing, setEditing] = useState<Partial<TeamMember> | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function load() {
-    setIsLoading(true);
-    const res = await fetch("/api/admin/team");
-    const json = await res.json();
-    setMembers(json.data || []);
-    setIsLoading(false);
-  }
 
   async function save() {
     if (!editing) return;
@@ -75,7 +67,6 @@ export default function TeamAdminPage() {
     });
 
     setEditing(null);
-    load();
   }
 
   async function remove(id: string) {
@@ -83,7 +74,6 @@ export default function TeamAdminPage() {
     const toDelete = members.find((m) => m.id === id);
     const res = await fetch(`/api/admin/team/${id}`, { method: "DELETE" });
     if (res.ok) {
-      setMembers(members.filter((m) => m.id !== id));
       await logClientActivity({
         action: "delete",
         tableName: "team_members",
@@ -98,7 +88,13 @@ export default function TeamAdminPage() {
       <div className="mb-8 flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold text-dark">Team Members</h1>
-          <p className="text-dark/60 mt-1">{members.length} people</p>
+          <p className="text-dark/60 mt-1 flex items-center gap-2">
+            {members.length} people
+            <span className="inline-flex items-center gap-1 text-xs text-green-600">
+              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              Live
+            </span>
+          </p>
         </div>
         <button
           onClick={() => setEditing({ ...empty })}
@@ -196,7 +192,7 @@ export default function TeamAdminPage() {
                     onChange={(e) =>
                       setEditing({ ...editing, name: e.target.value })
                     }
-                    placeholder="Kenyi Robert"
+                    placeholder="Kenyi Robert Waya"
                   />
                 </div>
                 <div>
@@ -242,7 +238,7 @@ export default function TeamAdminPage() {
                     onChange={(e) =>
                       setEditing({ ...editing, email: e.target.value })
                     }
-                    placeholder="kenyi@savetheorphansafrica.org"
+                    placeholder="name@savetheorphansafrica.org"
                   />
                 </div>
                 <div>

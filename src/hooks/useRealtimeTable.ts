@@ -39,13 +39,22 @@ export function useRealtimeTable<T extends { id: string }>({
     }
     if (result) setData(result as T[]);
     setIsLoading(false);
-  }, [table, filter?.column, filter?.value, orderBy?.column, orderBy?.ascending]);
+  }, [
+    table,
+    filter?.column,
+    filter?.value,
+    orderBy?.column,
+    orderBy?.ascending,
+  ]);
 
   useEffect(() => {
-    load();
+    // Skip initial load if we already have data
+    if (initialData.length === 0) {
+      load();
+    }
 
     const supabase = createClient();
-    const channelName = `realtime-${table}-${Date.now()}`;
+    const channelName = `realtime-${table}-${Date.now()}-${Math.random()}`;
 
     const channel = supabase
       .channel(channelName)
@@ -81,15 +90,12 @@ export function useRealtimeTable<T extends { id: string }>({
         if (status === "SUBSCRIBED") {
           console.log(`Realtime subscribed to ${table}`);
         }
-        if (status === "CHANNEL_ERROR") {
-          console.error(`Realtime error on ${table}`);
-        }
       });
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [table, load]);
+  }, [table, load, initialData.length]);
 
   return {
     data,
