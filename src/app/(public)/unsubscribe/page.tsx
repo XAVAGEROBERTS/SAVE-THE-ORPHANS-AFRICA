@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { Check, AlertCircle, Heart, Home, Loader2 } from "lucide-react";
+import { Check, AlertCircle, Home, Heart, Loader2 } from "lucide-react";
 
 export default function UnsubscribePage() {
   const router = useRouter();
@@ -24,7 +25,6 @@ export default function UnsubscribePage() {
       try {
         const supabase = createClient();
 
-        // Look up the subscriber by token
         const { data: subscriber } = await supabase
           .from("subscribers")
           .select("id, email")
@@ -36,7 +36,6 @@ export default function UnsubscribePage() {
           return;
         }
 
-        // DELETE the subscriber entirely
         const { error: deleteError } = await supabase
           .from("subscribers")
           .delete()
@@ -82,36 +81,6 @@ export default function UnsubscribePage() {
               <p className="text-dark/70 mb-6">
                 This unsubscribe link is missing or invalid.
               </p>
-            </>
-          )}
-
-          {status === "not_found" && (
-            <>
-              <AlertCircle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-              <h1 className="text-2xl font-bold mb-3">Not Found</h1>
-              <p className="text-dark/70 mb-6">
-                We couldn&apos;t find this subscription. It may have already been
-                removed.
-              </p>
-            </>
-          )}
-
-          {status === "success" && (
-            <>
-              <Check className="w-12 h-12 text-primary mx-auto mb-4" />
-              <h1 className="text-2xl font-bold mb-3">
-                You&apos;ve Been Unsubscribed
-              </h1>
-              <p className="text-dark/70 mb-2">{email}</p>
-              <p className="text-dark/60 text-sm mb-8">
-                Your email has been removed from our list. You can re-subscribe
-                anytime from our website.
-              </p>
-            </>
-          )}
-
-          {(status === "success" || status === "not_found" || status === "invalid") && (
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <button
                 onClick={handleReturnHome}
                 disabled={isNavigating}
@@ -129,12 +98,54 @@ export default function UnsubscribePage() {
                   </>
                 )}
               </button>
+            </>
+          )}
 
-              {status === "success" && (
+          {status === "not_found" && (
+            <>
+              <AlertCircle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
+              <h1 className="text-2xl font-bold mb-3">Not Found</h1>
+              <p className="text-dark/70 mb-6">
+                We couldn&apos;t find this subscription. It may have already been
+                removed.
+              </p>
+              <button
+                onClick={handleReturnHome}
+                disabled={isNavigating}
+                className="btn-primary inline-flex items-center justify-center gap-2 min-w-[180px]"
+              >
+                {isNavigating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  <>
+                    <Home className="w-4 h-4" />
+                    Return Home
+                  </>
+                )}
+              </button>
+            </>
+          )}
+
+          {status === "success" && (
+            <>
+              <Check className="w-12 h-12 text-primary mx-auto mb-4" />
+              <h1 className="text-2xl font-bold mb-3">
+                You&apos;ve Been Unsubscribed
+              </h1>
+              <p className="text-dark/70 mb-2">{email}</p>
+              <p className="text-dark/60 text-sm mb-8">
+                You will no longer receive newsletter emails from us. You can
+                re-subscribe anytime from our website.
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <button
                   onClick={handleReturnHome}
                   disabled={isNavigating}
-                  className="btn-ghost inline-flex items-center justify-center gap-2 min-w-[180px]"
+                  className="btn-primary inline-flex items-center justify-center gap-2 min-w-[180px]"
                 >
                   {isNavigating ? (
                     <>
@@ -143,13 +154,33 @@ export default function UnsubscribePage() {
                     </>
                   ) : (
                     <>
-                      <Heart className="w-4 h-4" fill="currentColor" />
-                      Back to Website
+                      <Home className="w-4 h-4" />
+                      Return Home
                     </>
                   )}
                 </button>
-              )}
-            </div>
+
+                <Link
+                  href="/donate"
+                  prefetch={true}
+                  className="btn-ghost inline-flex items-center justify-center gap-2 min-w-[180px]"
+                >
+                  <Heart className="w-4 h-4" fill="currentColor" />
+                  Support Our Work
+                </Link>
+              </div>
+
+              <p className="text-xs text-dark/50 mt-6">
+                Changed your mind? You can{" "}
+                <button
+                  onClick={handleReturnHome}
+                  className="text-primary underline hover:no-underline"
+                >
+                  re-subscribe anytime
+                </button>{" "}
+                from our homepage.
+              </p>
+            </>
           )}
         </div>
       </div>
