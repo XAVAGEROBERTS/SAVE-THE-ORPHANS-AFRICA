@@ -4,6 +4,10 @@ import { useState } from "react";
 import { Send, Check, AlertCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
+function sanitizeText(input: string): string {
+  return input.replace(/[\r\n\t]/g, "").trim().slice(0, 100);
+}
+
 export function NewsletterForm() {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -15,9 +19,8 @@ export function NewsletterForm() {
     setStatus("loading");
     setMessage("");
 
-    // Basic validation
-    const cleanEmail = email.trim().toLowerCase();
-    const cleanName = name.trim();
+    const cleanEmail = sanitizeText(email).toLowerCase();
+    const cleanName = sanitizeText(name);
 
     if (!cleanEmail || !cleanEmail.includes("@")) {
       setStatus("error");
@@ -29,15 +32,11 @@ export function NewsletterForm() {
       const supabase = createClient();
 
       // Check if already subscribed
-      const { data: existing, error: lookupError } = await supabase
+      const { data: existing } = await supabase
         .from("subscribers")
-        .select("id, is_active, unsubscribe_token")
+        .select("id, is_active")
         .eq("email", cleanEmail)
         .maybeSingle();
-
-      if (lookupError) {
-        console.error("Lookup error:", lookupError);
-      }
 
       if (existing) {
         if (existing.is_active) {
@@ -60,30 +59,25 @@ export function NewsletterForm() {
         if (updateError) {
           console.error("Update error:", updateError);
           setStatus("error");
-          setMessage(updateError.message || "Failed to re-subscribe.");
+          setMessage("Failed to re-subscribe. Please try again.");
           return;
         }
 
-        // Send welcome email — fire and forget, non-blocking
-        try {
-          fetch("/api/email/welcome", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              email: cleanEmail,
-              name: cleanName || null,
-            }),
-          }).catch(() => {
-            /* ignore */
-          });
-        } catch {
-          /* ignore */
-        }
+        // Fire-and-forget welcome email
+        fetch("/api/email/welcome", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: cleanEmail, name: cleanName || null }),
+        }).catch(() => {});
 
         setStatus("success");
         setMessage("Welcome back! You've been re-subscribed.");
         setEmail("");
         setName("");
+        setTimeout(() => {
+          setStatus("idle");
+          setMessage("");
+        }, 4000);
         return;
       }
 
@@ -96,7 +90,7 @@ export function NewsletterForm() {
       if (insertError) {
         console.error("Insert error:", insertError);
         setStatus("error");
-        setMessage(insertError.message || "Failed to subscribe.");
+        setMessage("Failed to subscribe. Please try again.");
         return;
       }
 
@@ -105,43 +99,27 @@ export function NewsletterForm() {
         (window as any).plausible("Newsletter Subscribed");
       }
 
-      // Send welcome email — fire and forget
-      try {
-        fetch("/api/email/welcome", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: cleanEmail,
-            name: cleanName || null,
-          }),
-        }).catch(() => {
-          /* ignore */
-        });
-      } catch {
-        /* ignore */
-      }
+      // Fire-and-forget welcome email
+      fetch("/api/email/welcome", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: cleanEmail, name: cleanName || null }),
+      }).catch(() => {});
 
-      // Notify admin — fire and forget
-      try {
-        fetch("/api/email/notify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: "subscriber",
-            data: { email: cleanEmail, name: cleanName || "—" },
-          }),
-        }).catch(() => {
-          /* ignore */
-        });
-      } catch {
-        /* ignore */
-      }
+      // Fire-and-forget admin notification
+      fetch("/api/email/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "subscriber",
+          data: { email: cleanEmail, name: cleanName || "—" },
+        }),
+      }).catch(() => {});
 
       setStatus("success");
       setMessage("Thank you for subscribing!");
       setEmail("");
       setName("");
-
       setTimeout(() => {
         setStatus("idle");
         setMessage("");
@@ -149,7 +127,7 @@ export function NewsletterForm() {
     } catch (err: any) {
       console.error("Newsletter error:", err);
       setStatus("error");
-      setMessage(err?.message || "Something went wrong. Please try again.");
+      setMessage("Something went wrong. Please try again.");
     }
   };
 

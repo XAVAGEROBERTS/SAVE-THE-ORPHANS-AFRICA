@@ -7,27 +7,45 @@ const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ||
   "https://save-the-orphans-africa.vercel.app";
 
+function stripHeaderChars(input: string): string {
+  return String(input).replace(/[\r\n\t]/g, " ").slice(0, 200);
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { email, name } = await req.json();
 
-    if (!email) {
-      return NextResponse.json({ error: "Email required" }, { status: 400 });
+    if (!email || typeof email !== "string") {
+      return NextResponse.json(
+        { error: "Email required" },
+        { status: 400 }
+      );
     }
 
-    // Look up unsubscribe token for this subscriber
-    const supabase = createAdminClient();
-    const { data: subscriber } = await supabase
-      .from("subscribers")
-      .select("unsubscribe_token")
-      .eq("email", email.toLowerCase().trim())
-      .maybeSingle();
+    // Sanitize inputs
+    const cleanEmail = String(email).replace(/[\r\n\t]/g, "").trim().toLowerCase();
+    const cleanName = name
+      ? String(name).replace(/[\r\n\t]/g, "").trim().slice(0, 100)
+      : "";
 
-    const unsubscribeUrl = subscriber?.unsubscribe_token
-      ? `${SITE_URL}/unsubscribe?token=${subscriber.unsubscribe_token}`
-      : undefined;
+    // Look up unsubscribe token
+    let unsubscribeUrl: string | undefined;
+    try {
+      const supabase = createAdminClient();
+      const { data: subscriber } = await supabase
+        .from("subscribers")
+        .select("unsubscribe_token")
+        .eq("email", cleanEmail)
+        .maybeSingle();
 
-    const greeting = name ? `Hi ${name}` : "Hello";
+      if (subscriber?.unsubscribe_token) {
+        unsubscribeUrl = `${SITE_URL}/unsubscribe?token=${subscriber.unsubscribe_token}`;
+      }
+    } catch (lookupErr) {
+      console.error("Unsubscribe lookup failed:", lookupErr);
+    }
+
+    const greeting = cleanName ? `Hi ${cleanName}` : "Hello";
 
     const html = wrapEmail({
       title: "Welcome to Save the Orphans Africa!",
@@ -43,13 +61,12 @@ export async function POST(req: NextRequest) {
       `,
       ctaText: "Learn More About Us",
       ctaUrl: `${SITE_URL}/about`,
-      footerNote:
-        "You're receiving this because you subscribed on our website.",
+      footerNote: "You're receiving this because you subscribed on our website.",
       unsubscribeUrl,
     });
 
     await sendEmail({
-      to: email,
+      to: cleanEmail,
       subject: "Welcome to Save the Orphans Africa!",
       html,
     });
@@ -57,9 +74,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error("Welcome email error:", error);
-    return NextResponse.json(
-      { error: error.message || "Failed to send email" },
-      { status: 500 }
-    );
+
+    // Sanitize error message — no newlines allowed in headers
+    const safeMessage = stripHeaderChars(error?.message || "Failed to send email");
+
+    return NextResponse.json({ error: safeMessage }, { status: 500 });
   }
 }
