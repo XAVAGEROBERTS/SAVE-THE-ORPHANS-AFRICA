@@ -5,7 +5,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Check, Send, AlertCircle } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 
 const contactSchema = z.object({
   fullName: z.string().min(2, "Full name is required"),
@@ -32,52 +31,58 @@ export function ContactForm() {
     setSubmitError(null);
 
     try {
-      const supabase = createClient();
-
-      const { error } = await supabase.from("contact_messages").insert({
-        full_name: data.fullName,
-        email: data.email,
-        phone: data.phone || null,
-        subject: data.subject,
-        message: data.message,
+      const res = await fetch("/api/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          table: "contact_messages",
+          data: {
+            full_name: data.fullName,
+            email: data.email.trim().toLowerCase(),
+            phone: data.phone || null,
+            subject: data.subject,
+            message: data.message,
+          },
+        }),
       });
 
-      if (error) {
-        console.error("Contact error:", error.message, error.code);
-        setSubmitError(`Failed: ${error.message} [${error.code}]`);
+      const json = await res.json();
+
+      if (!res.ok) {
+        if (res.status === 429) {
+          setSubmitError(
+            json.error || "Too many submissions. Please try again later."
+          );
+          return;
+        }
+        setSubmitError(json.error || "Failed to submit. Please try again.");
         return;
       }
 
-      // Track analytics event (if Plausible loaded)
       if (typeof window !== "undefined" && (window as any).plausible) {
         (window as any).plausible("Contact Form Submitted");
       }
 
-      // Notify admin — fire and forget
-      try {
-        await fetch("/api/email/notify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: "contact",
-            data: {
-              name: data.fullName,
-              email: data.email,
-              phone: data.phone || "—",
-              subject: data.subject,
-              message: data.message,
-            },
-          }),
-        });
-      } catch (notifyErr) {
-        console.error("Admin notification failed:", notifyErr);
-      }
+      fetch("/api/email/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "contact",
+          data: {
+            name: data.fullName,
+            email: data.email,
+            phone: data.phone || "—",
+            subject: data.subject,
+            message: data.message,
+          },
+        }),
+      }).catch(() => {});
 
       setIsSubmitted(true);
       reset();
     } catch (err: any) {
-      console.error("Unexpected:", err);
-      setSubmitError(`Unexpected error: ${err?.message || "Unknown"}`);
+      console.error("Contact error:", err);
+      setSubmitError(err?.message || "Something went wrong. Please try again.");
     }
   };
 

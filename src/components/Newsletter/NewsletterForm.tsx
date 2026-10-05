@@ -2,11 +2,6 @@
 
 import { useState } from "react";
 import { Send, Check, AlertCircle } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
-
-function sanitize(input: string): string {
-  return input.replace(/[\r\n\t]/g, "").trim().slice(0, 100);
-}
 
 export function NewsletterForm() {
   const [email, setEmail] = useState("");
@@ -19,8 +14,8 @@ export function NewsletterForm() {
     setStatus("loading");
     setMessage("");
 
-    const cleanEmail = sanitize(email).toLowerCase();
-    const cleanName = sanitize(name);
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanName = name.trim().slice(0, 100);
 
     if (!cleanEmail || !cleanEmail.includes("@")) {
       setStatus("error");
@@ -29,42 +24,49 @@ export function NewsletterForm() {
     }
 
     try {
-      const supabase = createClient();
-
-      // Try to insert. If email already exists, unique constraint throws error.
-      const { error } = await supabase.from("subscribers").insert({
-        email: cleanEmail,
-        name: cleanName || null,
+      const res = await fetch("/api/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          table: "subscribers",
+          data: {
+            email: cleanEmail,
+            name: cleanName || null,
+          },
+        }),
       });
 
-      if (error) {
-        console.error("Subscribe error:", error);
+      const json = await res.json();
 
-        // Duplicate email
-        if (error.code === "23505" || error.message.toLowerCase().includes("duplicate")) {
+      if (!res.ok) {
+        if (res.status === 429) {
+          setStatus("error");
+          setMessage(json.error || "Too many attempts. Please try again later.");
+          return;
+        }
+        if (res.status === 409) {
           setStatus("error");
           setMessage("This email is already subscribed.");
           return;
         }
-
         setStatus("error");
-        setMessage("Failed to subscribe. Please try again.");
+        setMessage(json.error || "Failed to subscribe. Please try again.");
         return;
       }
 
-      // Analytics
       if (typeof window !== "undefined" && (window as any).plausible) {
         (window as any).plausible("Newsletter Subscribed");
       }
 
-      // Fire-and-forget welcome email
       fetch("/api/email/welcome", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: cleanEmail, name: cleanName || null }),
+        body: JSON.stringify({
+          email: cleanEmail,
+          name: cleanName || null,
+        }),
       }).catch(() => {});
 
-      // Fire-and-forget admin notification
       fetch("/api/email/notify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

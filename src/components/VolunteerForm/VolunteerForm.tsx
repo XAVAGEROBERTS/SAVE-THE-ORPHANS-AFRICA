@@ -5,7 +5,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Check, Send, AlertCircle } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 
 const volunteerSchema = z.object({
   fullName: z.string().min(2, "Full name is required"),
@@ -49,58 +48,63 @@ export function VolunteerForm() {
     setSubmitError(null);
 
     try {
-      const supabase = createClient();
-
-      const { error } = await supabase.from("volunteer_applications").insert({
-        full_name: data.fullName,
-        email: data.email,
-        phone: data.phone,
-        country: data.country,
-        area_of_interest: data.areaOfInterest,
-        skills: data.skills,
-        availability: data.availability,
-        motivation: data.motivation,
-        previous_experience: data.previousExperience || null,
+      const res = await fetch("/api/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          table: "volunteer_applications",
+          data: {
+            full_name: data.fullName,
+            email: data.email.trim().toLowerCase(),
+            phone: data.phone,
+            country: data.country,
+            area_of_interest: data.areaOfInterest,
+            skills: data.skills,
+            availability: data.availability,
+            motivation: data.motivation,
+            previous_experience: data.previousExperience || null,
+          },
+        }),
       });
 
-      if (error) {
-        console.error("Volunteer error:", error.message, error.code);
-        setSubmitError(`Failed: ${error.message} [${error.code}]`);
+      const json = await res.json();
+
+      if (!res.ok) {
+        if (res.status === 429) {
+          setSubmitError(
+            json.error || "Too many submissions. Please try again later."
+          );
+          return;
+        }
+        setSubmitError(json.error || "Failed to submit. Please try again.");
         return;
       }
 
-      // Track analytics event
       if (typeof window !== "undefined" && (window as any).plausible) {
         (window as any).plausible("Volunteer Application Submitted");
       }
 
-      // Notify admin
-      try {
-        await fetch("/api/email/notify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: "volunteer",
-            data: {
-              name: data.fullName,
-              email: data.email,
-              phone: data.phone,
-              country: data.country,
-              area_of_interest: data.areaOfInterest,
-              availability: data.availability,
-              motivation: data.motivation,
-            },
-          }),
-        });
-      } catch (notifyErr) {
-        console.error("Admin notification failed:", notifyErr);
-      }
+      fetch("/api/email/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "volunteer",
+          data: {
+            name: data.fullName,
+            email: data.email,
+            phone: data.phone,
+            country: data.country,
+            area_of_interest: data.areaOfInterest,
+            availability: data.availability,
+          },
+        }),
+      }).catch(() => {});
 
       setIsSubmitted(true);
       reset();
     } catch (err: any) {
-      console.error("Unexpected:", err);
-      setSubmitError(`Unexpected error: ${err?.message || "Unknown"}`);
+      console.error("Volunteer error:", err);
+      setSubmitError(err?.message || "Something went wrong. Please try again.");
     }
   };
 

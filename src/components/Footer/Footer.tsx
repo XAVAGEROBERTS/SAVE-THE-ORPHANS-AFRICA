@@ -110,13 +110,13 @@ export function Footer() {
               <li className="flex items-start gap-3">
                 <MapPin className="w-4 h-4 text-gold mt-0.5 shrink-0" />
                 <span className="text-white/70 text-sm">
-                  123 Hope Street, Nairobi, Kenya
+                  123 Hope Street, Kampala, Uganda
                 </span>
               </li>
               <li className="flex items-center gap-3">
                 <Phone className="w-4 h-4 text-gold shrink-0" />
-                <a href="tel:+254700000000" className="text-white/70 hover:text-gold text-sm">
-                  +254 700 000 000
+                <a href="tel:+256700000000" className="text-white/70 hover:text-gold text-sm">
+                  +256 700 000 000
                 </a>
               </li>
               <li className="flex items-center gap-3">
@@ -145,15 +145,18 @@ export function Footer() {
             <p className="text-white/50 text-sm">
               © {new Date().getFullYear()} Save the Orphans Africa. All Rights Reserved.
             </p>
-            <div className="flex flex-wrap items-center gap-4 text-sm">
-              <Link href="/privacy-policy" className="text-white/50 hover:text-gold">
+            <div className="flex flex-wrap items-center justify-center gap-4 text-sm">
+              <Link href="/privacy-policy" className="text-white/50 hover:text-gold transition-colors">
                 Privacy Policy
               </Link>
-              <Link href="/terms" className="text-white/50 hover:text-gold">
+              <Link href="/terms" className="text-white/50 hover:text-gold transition-colors">
                 Terms of Use
               </Link>
-              <Link href="/child-safeguarding" className="text-white/50 hover:text-gold">
+              <Link href="/child-safeguarding" className="text-white/50 hover:text-gold transition-colors">
                 Child Safeguarding
+              </Link>
+              <Link href="/donation-policy" className="text-white/50 hover:text-gold transition-colors">
+                Donation Policy
               </Link>
             </div>
           </div>
