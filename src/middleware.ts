@@ -14,20 +14,30 @@ export async function middleware(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(
-          cookiesToSet: {
-            name: string;
-            value: string;
-            options?: any;
-          }[]
-        ) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
-          response = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          );
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            // Sanitize cookie value — remove any characters browsers reject
+            const safeValue = String(value || "")
+              .replace(/[\r\n]/g, "")
+              .trim();
+
+            if (!safeValue) return;
+
+            // Only set cookies with valid options
+            try {
+              const safeOptions = options
+                ? {
+                    ...options,
+                    path: options.path || "/",
+                  }
+                : { path: "/" };
+
+              request.cookies.set(name, safeValue);
+              response.cookies.set(name, safeValue, safeOptions);
+            } catch (err) {
+              console.error("Failed to set cookie:", name, err);
+            }
+          });
         },
       },
     }
@@ -39,7 +49,6 @@ export async function middleware(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  // Protect /admin routes except /admin/login
   if (pathname.startsWith("/admin") && pathname !== "/admin/login") {
     if (!user) {
       const url = request.nextUrl.clone();
