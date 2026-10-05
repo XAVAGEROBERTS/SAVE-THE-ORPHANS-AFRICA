@@ -31,62 +31,53 @@ export function ContactForm() {
   const onSubmit = async (data: ContactFormData) => {
     setSubmitError(null);
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-    console.log("ENV CHECK:", {
-      url: supabaseUrl,
-      keyStart: supabaseKey?.substring(0, 20) + "...",
-    });
-
-    if (!supabaseUrl || !supabaseKey) {
-      setSubmitError("Configuration error: Supabase environment variables missing.");
-      return;
-    }
-
     try {
       const supabase = createClient();
 
-      const payload = {
+      const { error } = await supabase.from("contact_messages").insert({
         full_name: data.fullName,
         email: data.email,
         phone: data.phone || null,
         subject: data.subject,
         message: data.message,
-      };
+      });
 
-      console.log("Submitting payload:", payload);
-
-      const { data: result, error } = await supabase
-        .from("contact_messages")
-        .insert(payload)
-        .select();
-
-         if (error) {
-        const errorDetails = [
-          `MESSAGE: ${error.message || "(empty)"}`,
-          `CODE: ${error.code || "(empty)"}`,
-          `DETAILS: ${error.details || "(empty)"}`,
-          `HINT: ${error.hint || "(empty)"}`,
-          `KEYS: ${Object.keys(error).join(", ")}`,
-          `STRINGIFIED: ${JSON.stringify(error)}`,
-          `STRING: ${String(error)}`,
-        ].join("\n");
-
-        console.error("SUPABASE ERROR DETAILS:\n" + errorDetails);
-
-        setSubmitError(
-          `Failed [${error.code || "no-code"}]: ${error.message || "Unknown error"}`
-        );
+      if (error) {
+        console.error("Contact error:", error.message, error.code);
+        setSubmitError(`Failed: ${error.message} [${error.code}]`);
         return;
       }
 
-      console.log("SUCCESS:", result);
+      // Track analytics event (if Plausible loaded)
+      if (typeof window !== "undefined" && (window as any).plausible) {
+        (window as any).plausible("Contact Form Submitted");
+      }
+
+      // Notify admin — fire and forget
+      try {
+        await fetch("/api/email/notify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "contact",
+            data: {
+              name: data.fullName,
+              email: data.email,
+              phone: data.phone || "—",
+              subject: data.subject,
+              message: data.message,
+            },
+          }),
+        });
+      } catch (notifyErr) {
+        console.error("Admin notification failed:", notifyErr);
+      }
+
       setIsSubmitted(true);
       reset();
     } catch (err: any) {
-      console.error("CATCH ERROR:", err);
-      setSubmitError(`Unexpected error: ${err?.message || JSON.stringify(err)}`);
+      console.error("Unexpected:", err);
+      setSubmitError(`Unexpected error: ${err?.message || "Unknown"}`);
     }
   };
 
@@ -149,7 +140,7 @@ export function ContactForm() {
             type="tel"
             {...register("phone")}
             className="form-input"
-            placeholder="+1 234 567 8900"
+            placeholder="+256 700 000 000"
           />
         </div>
         <div>

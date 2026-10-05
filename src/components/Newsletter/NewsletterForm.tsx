@@ -28,9 +28,11 @@ export function NewsletterForm() {
       // Check if already subscribed
       const { data: existing } = await supabase
         .from("subscribers")
-        .select("id, is_active")
+        .select("id, is_active, unsubscribe_token")
         .eq("email", cleanEmail)
         .maybeSingle();
+
+      let isNewSubscription = false;
 
       if (existing) {
         if (existing.is_active) {
@@ -49,6 +51,16 @@ export function NewsletterForm() {
 
           if (updateError) throw updateError;
 
+          // Send welcome email
+      await fetch("/api/email/welcome", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    email: cleanEmail,
+    name: name.trim() || null,
+  }),
+});
+
           setStatus("success");
           setMessage("Welcome back! You've been re-subscribed.");
           setEmail("");
@@ -63,6 +75,37 @@ export function NewsletterForm() {
       });
 
       if (error) throw error;
+      isNewSubscription = true;
+
+      // Track analytics event
+      if (typeof window !== "undefined" && (window as any).plausible) {
+        (window as any).plausible("Newsletter Subscribed");
+      }
+
+      // Send welcome email
+      try {
+        await fetch("/api/email/welcome", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: cleanEmail, name: name.trim() || null }),
+        });
+      } catch (err) {
+        console.error("Welcome email failed:", err);
+      }
+
+      // Notify admin
+      try {
+        await fetch("/api/email/notify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "subscriber",
+            data: { email: cleanEmail, name: name.trim() || "—" },
+          }),
+        });
+      } catch (err) {
+        console.error("Admin notification failed:", err);
+      }
 
       setStatus("success");
       setMessage("Thank you for subscribing!");

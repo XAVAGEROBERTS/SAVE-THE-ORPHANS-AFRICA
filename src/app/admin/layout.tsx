@@ -19,7 +19,8 @@ import {
   TrendingUp,
   Image as ImageIcon,
   Shield,
-    Quote, 
+  Quote,
+  Send,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/utils/cn";
@@ -29,6 +30,7 @@ const navItems = [
   { href: "/admin/messages", label: "Messages", icon: MessageSquare },
   { href: "/admin/volunteers", label: "Volunteers", icon: Users },
   { href: "/admin/subscribers", label: "Subscribers", icon: Mail },
+  { href: "/admin/newsletters", label: "Newsletters", icon: Send },
   { href: "/admin/donations", label: "Donations", icon: DollarSign },
   { href: "/admin/programs", label: "Programs", icon: BookOpen },
   { href: "/admin/stories", label: "Stories", icon: FileText },
@@ -140,17 +142,21 @@ export default function AdminLayout({
 
           {/* Footer actions */}
           <div className="p-4 border-t border-white/10 space-y-2">
-            <Link
-              href="/"
+            {/* View Website — always goes to the public site URL */}
+            <a
+              href={process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}
               target="_blank"
+              rel="noopener noreferrer"
               className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-white/70 hover:bg-white/10 transition-colors"
             >
               <ExternalLink className="w-4 h-4" />
               View Website
-            </Link>
+            </a>
+
             <div className="px-4 py-2">
               <p className="text-xs text-white/50 truncate">{userEmail}</p>
             </div>
+
             <button
               onClick={handleLogout}
               className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-red-300 hover:bg-red-500/20 transition-colors w-full"

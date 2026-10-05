@@ -69,6 +69,33 @@ export function VolunteerForm() {
         return;
       }
 
+      // Track analytics event
+      if (typeof window !== "undefined" && (window as any).plausible) {
+        (window as any).plausible("Volunteer Application Submitted");
+      }
+
+      // Notify admin
+      try {
+        await fetch("/api/email/notify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "volunteer",
+            data: {
+              name: data.fullName,
+              email: data.email,
+              phone: data.phone,
+              country: data.country,
+              area_of_interest: data.areaOfInterest,
+              availability: data.availability,
+              motivation: data.motivation,
+            },
+          }),
+        });
+      } catch (notifyErr) {
+        console.error("Admin notification failed:", notifyErr);
+      }
+
       setIsSubmitted(true);
       reset();
     } catch (err: any) {
@@ -118,12 +145,12 @@ export function VolunteerForm() {
         </div>
         <div>
           <label htmlFor="phone" className="form-label">Phone Number *</label>
-          <input id="phone" type="tel" {...register("phone")} className="form-input" placeholder="+1 234 567 8900" />
+          <input id="phone" type="tel" {...register("phone")} className="form-input" placeholder="+256 700 000 000" />
           {errors.phone && <p className="form-error">{errors.phone.message}</p>}
         </div>
         <div>
           <label htmlFor="country" className="form-label">Country *</label>
-          <input id="country" type="text" {...register("country")} className="form-input" placeholder="United States" />
+          <input id="country" type="text" {...register("country")} className="form-input" placeholder="Uganda" />
           {errors.country && <p className="form-error">{errors.country.message}</p>}
         </div>
         <div>
