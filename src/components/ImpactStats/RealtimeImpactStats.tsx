@@ -12,7 +12,7 @@ interface ImpactStat {
   label: string;
   description: string;
   icon: string;
-  display_order: number;
+  display_order?: number;
 }
 
 function StatCard({ stat }: { stat: ImpactStat }) {

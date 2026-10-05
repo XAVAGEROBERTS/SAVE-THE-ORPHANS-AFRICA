@@ -11,10 +11,10 @@ interface TeamMember {
   role: string;
   bio: string;
   image_url: string | null;
-  email: string | null;
-  linkedin_url: string | null;
+  email?: string | null;
+  linkedin_url?: string | null;
   is_founder: boolean;
-  display_order: number;
+  display_order?: number;
 }
 
 export function RealtimeTeamGrid({
