@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { Check, AlertCircle, Heart } from "lucide-react";
+import { Check, AlertCircle, Heart, Home } from "lucide-react";
 
 export default async function UnsubscribePage({
   searchParams,
@@ -20,7 +20,12 @@ export default async function UnsubscribePage({
             <p className="text-dark/70 mb-6">
               This unsubscribe link is missing or invalid.
             </p>
-            <Link href="/" className="btn-primary">
+            <Link
+              href="/"
+              prefetch={true}
+              className="btn-primary inline-flex items-center gap-2"
+            >
+              <Home className="w-4 h-4" />
               Return Home
             </Link>
           </div>
@@ -50,7 +55,12 @@ export default async function UnsubscribePage({
               We couldn&apos;t find this subscription. It may have already been
               unsubscribed.
             </p>
-            <Link href="/" className="btn-primary">
+            <Link
+              href="/"
+              prefetch={true}
+              className="btn-primary inline-flex items-center gap-2"
+            >
+              <Home className="w-4 h-4" />
               Return Home
             </Link>
           </div>
@@ -84,11 +94,20 @@ export default async function UnsubscribePage({
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link href="/" className="btn-primary">
-              <Heart className="w-4 h-4" fill="currentColor" />
+            <Link
+              href="/"
+              prefetch={true}
+              className="btn-primary inline-flex items-center justify-center gap-2"
+            >
+              <Home className="w-4 h-4" />
               Return Home
             </Link>
-            <Link href="/" className="btn-ghost">
+            <Link
+              href="/"
+              prefetch={true}
+              className="btn-ghost inline-flex items-center justify-center gap-2"
+            >
+              <Heart className="w-4 h-4" fill="currentColor" />
               Back to Website
             </Link>
           </div>
