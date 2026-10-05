@@ -9,6 +9,7 @@ export default async function UnsubscribePage({
 }) {
   const { token } = await searchParams;
 
+  // ----- No token -----
   if (!token) {
     return (
       <section className="section-padding bg-light min-h-[60vh] flex items-center">
@@ -16,10 +17,10 @@ export default async function UnsubscribePage({
           <div className="card p-8">
             <AlertCircle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
             <h1 className="text-2xl font-bold mb-3">Invalid Link</h1>
-            <p className="text-dark/70">
+            <p className="text-dark/70 mb-6">
               This unsubscribe link is missing or invalid.
             </p>
-            <Link href="/" className="btn-primary mt-6">
+            <Link href="/" className="btn-primary">
               Return Home
             </Link>
           </div>
@@ -28,6 +29,7 @@ export default async function UnsubscribePage({
     );
   }
 
+  // ----- Lookup subscriber -----
   const supabase = createAdminClient();
 
   const { data: subscriber } = await supabase
@@ -36,6 +38,7 @@ export default async function UnsubscribePage({
     .eq("unsubscribe_token", token)
     .maybeSingle();
 
+  // ----- Token not found -----
   if (!subscriber) {
     return (
       <section className="section-padding bg-light min-h-[60vh] flex items-center">
@@ -43,10 +46,11 @@ export default async function UnsubscribePage({
           <div className="card p-8">
             <AlertCircle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
             <h1 className="text-2xl font-bold mb-3">Not Found</h1>
-            <p className="text-dark/70">
-              We couldn&apos;t find this subscription.
+            <p className="text-dark/70 mb-6">
+              We couldn&apos;t find this subscription. It may have already been
+              unsubscribed.
             </p>
-            <Link href="/" className="btn-primary mt-6">
+            <Link href="/" className="btn-primary">
               Return Home
             </Link>
           </div>
@@ -55,6 +59,7 @@ export default async function UnsubscribePage({
     );
   }
 
+  // ----- Mark as unsubscribed -----
   await supabase
     .from("subscribers")
     .update({
@@ -63,21 +68,30 @@ export default async function UnsubscribePage({
     })
     .eq("id", subscriber.id);
 
+  // ----- Success -----
   return (
     <section className="section-padding bg-light min-h-[60vh] flex items-center">
       <div className="container-custom max-w-lg text-center">
         <div className="card p-8">
           <Check className="w-12 h-12 text-primary mx-auto mb-4" />
-          <h1 className="text-2xl font-bold mb-3">You&apos;ve Been Unsubscribed</h1>
+          <h1 className="text-2xl font-bold mb-3">
+            You&apos;ve Been Unsubscribed
+          </h1>
           <p className="text-dark/70 mb-2">{subscriber.email}</p>
-          <p className="text-dark/60 text-sm">
+          <p className="text-dark/60 text-sm mb-8">
             You will no longer receive newsletter emails from us. You can
             re-subscribe anytime from our website.
           </p>
-          <Link href="/" className="btn-primary mt-6">
-            <Heart className="w-4 h-4" fill="currentColor" />
-            Return Home
-          </Link>
+
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Link href="/" className="btn-primary">
+              <Heart className="w-4 h-4" fill="currentColor" />
+              Return Home
+            </Link>
+            <Link href="/" className="btn-ghost">
+              Back to Website
+            </Link>
+          </div>
         </div>
       </div>
     </section>
