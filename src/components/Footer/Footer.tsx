@@ -1,9 +1,20 @@
 import Link from "next/link";
-import { Heart, Mail, Phone, MapPin, Globe, MessageCircle, Share2, Send, Video } from "lucide-react";
+import {
+  Heart,
+  Mail,
+  Phone,
+  MapPin,
+  Globe,
+  MessageCircle,
+  Share2,
+  Send,
+  Video,
+} from "lucide-react";
 import { NewsletterForm } from "@/components/Newsletter/NewsletterForm";
 
 const quickLinks = [
   { href: "/about", label: "About Us" },
+  { href: "/team", label: "Meet Our Team" },
   { href: "/programs", label: "Programs" },
   { href: "/impact", label: "Impact" },
   { href: "/stories", label: "Stories & News" },
@@ -32,7 +43,6 @@ export function Footer() {
     <footer className="bg-[#0B3D2E] text-white">
       <div className="container-custom py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
-          {/* Brand Column */}
           <div>
             <Link href="/" className="flex items-center gap-2 mb-4">
               <div className="w-10 h-10 bg-gold rounded-full flex items-center justify-center">
@@ -75,13 +85,15 @@ export function Footer() {
             </div>
           </div>
 
-          {/* Quick Links */}
           <div>
             <h3 className="font-semibold text-gold mb-4">Quick Links</h3>
             <ul className="space-y-2.5">
               {quickLinks.map((link) => (
                 <li key={link.label}>
-                  <Link href={link.href} className="text-white/70 hover:text-gold text-sm">
+                  <Link
+                    href={link.href}
+                    className="text-white/70 hover:text-gold text-sm"
+                  >
                     {link.label}
                   </Link>
                 </li>
@@ -89,13 +101,15 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Get Involved */}
           <div>
             <h3 className="font-semibold text-gold mb-4">Get Involved</h3>
             <ul className="space-y-2.5">
               {getInvolvedLinks.map((link) => (
                 <li key={link.label}>
-                  <Link href={link.href} className="text-white/70 hover:text-gold text-sm">
+                  <Link
+                    href={link.href}
+                    className="text-white/70 hover:text-gold text-sm"
+                  >
                     {link.label}
                   </Link>
                 </li>
@@ -103,7 +117,6 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Contact */}
           <div>
             <h3 className="font-semibold text-gold mb-4">Contact Us</h3>
             <ul className="space-y-3">
@@ -115,7 +128,10 @@ export function Footer() {
               </li>
               <li className="flex items-center gap-3">
                 <Phone className="w-4 h-4 text-gold shrink-0" />
-                <a href="tel:+256700000000" className="text-white/70 hover:text-gold text-sm">
+                <a
+                  href="tel:+256700000000"
+                  className="text-white/70 hover:text-gold text-sm"
+                >
                   +256 700 000 000
                 </a>
               </li>
@@ -138,24 +154,36 @@ export function Footer() {
         </div>
       </div>
 
-      {/* Bottom Bar */}
       <div className="border-t border-white/10">
         <div className="container-custom py-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-white/50 text-sm">
-              © {new Date().getFullYear()} Save the Orphans Africa. All Rights Reserved.
+              © {new Date().getFullYear()} Save the Orphans Africa. All Rights
+              Reserved.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-4 text-sm">
-              <Link href="/privacy-policy" className="text-white/50 hover:text-gold transition-colors">
+              <Link
+                href="/privacy-policy"
+                className="text-white/50 hover:text-gold transition-colors"
+              >
                 Privacy Policy
               </Link>
-              <Link href="/terms" className="text-white/50 hover:text-gold transition-colors">
+              <Link
+                href="/terms"
+                className="text-white/50 hover:text-gold transition-colors"
+              >
                 Terms of Use
               </Link>
-              <Link href="/child-safeguarding" className="text-white/50 hover:text-gold transition-colors">
+              <Link
+                href="/child-safeguarding"
+                className="text-white/50 hover:text-gold transition-colors"
+              >
                 Child Safeguarding
               </Link>
-              <Link href="/donation-policy" className="text-white/50 hover:text-gold transition-colors">
+              <Link
+                href="/donation-policy"
+                className="text-white/50 hover:text-gold transition-colors"
+              >
                 Donation Policy
               </Link>
             </div>

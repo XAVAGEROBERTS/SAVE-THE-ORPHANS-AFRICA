@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRealtimeTable } from "@/hooks/useRealtimeTable";
 import { formatDate } from "@/utils/format";
 import { BulkActionsBar } from "@/components/admin/BulkActionsBar";
+import { logClientActivity } from "@/lib/admin/client-activity";
 
 interface Volunteer {
   id: string;
@@ -86,8 +87,18 @@ export default function VolunteersPage() {
   }
 
   async function updateStatus(id: string, status: string) {
+    const vol = volunteers.find((v) => v.id === id);
     const supabase = createClient();
     await supabase.from("volunteer_applications").update({ status }).eq("id", id);
+
+    // Log the status change
+    await logClientActivity({
+      action: "update",
+      tableName: "volunteer_applications",
+      recordId: id,
+      recordSummary: `Changed status to "${status}" for ${vol?.full_name || id}`,
+      changes: { status, previous_status: vol?.status },
+    });
   }
 
   async function handleBulkStatus(status: string) {
@@ -101,13 +112,31 @@ export default function VolunteersPage() {
       .update({ status })
       .in("id", Array.from(selectedIds));
 
+    // Log the bulk action
+    await logClientActivity({
+      action: "update",
+      tableName: "volunteer_applications",
+      recordId: null,
+      recordSummary: `Bulk changed ${count} application${count > 1 ? "s" : ""} to "${status}"`,
+      changes: { status, count },
+    });
+
     setSelectedIds(new Set());
   }
 
   async function handleDeleteSingle(id: string) {
     if (!confirm("Delete this application permanently?")) return;
+    const vol = volunteers.find((v) => v.id === id);
     const supabase = createClient();
     await supabase.from("volunteer_applications").delete().eq("id", id);
+
+    // Log the delete
+    await logClientActivity({
+      action: "delete",
+      tableName: "volunteer_applications",
+      recordId: id,
+      recordSummary: `Deleted application from ${vol?.full_name || id}`,
+    });
   }
 
   async function handleBulkDelete() {
@@ -120,6 +149,15 @@ export default function VolunteersPage() {
       .from("volunteer_applications")
       .delete()
       .in("id", Array.from(selectedIds));
+
+    // Log the bulk delete
+    await logClientActivity({
+      action: "delete",
+      tableName: "volunteer_applications",
+      recordId: null,
+      recordSummary: `Bulk deleted ${count} application${count > 1 ? "s" : ""}`,
+      changes: { count },
+    });
 
     setSelectedIds(new Set());
     if (selected && selectedIds.has(selected.id)) setSelected(null);

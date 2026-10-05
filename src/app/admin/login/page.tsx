@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Heart, AlertCircle, LogIn, Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { logClientActivity } from "@/lib/admin/client-activity";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -51,7 +52,28 @@ export default function AdminLoginPage() {
         return;
       }
 
-      // Success — redirect to dashboard
+      // Log the login event — client-side call
+      await logClientActivity({
+        action: "login",
+        tableName: "admin_users",
+        recordId: data.user.id,
+        recordSummary: `Logged in: ${data.user.email}`,
+      });
+
+      // Also try server-side logging as a fallback
+      try {
+        await fetch("/api/admin/log-auth", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: data.user.email,
+            action: "login",
+          }),
+        });
+      } catch (err) {
+        // Silent — client-side already logged it
+      }
+
       router.push("/admin");
       router.refresh();
     } catch (err: any) {
@@ -80,7 +102,9 @@ export default function AdminLoginPage() {
           )}
 
           <div>
-            <label htmlFor="email" className="form-label">Email</label>
+            <label htmlFor="email" className="form-label">
+              Email
+            </label>
             <input
               id="email"
               type="email"
@@ -94,7 +118,9 @@ export default function AdminLoginPage() {
           </div>
 
           <div>
-            <label htmlFor="password" className="form-label">Password</label>
+            <label htmlFor="password" className="form-label">
+              Password
+            </label>
             <div className="relative">
               <input
                 id="password"
@@ -114,9 +140,9 @@ export default function AdminLoginPage() {
                 tabIndex={-1}
               >
                 {showPassword ? (
-                  <EyeOff className="w-4.5 h-4.5" />
+                  <EyeOff className="w-4 h-4" />
                 ) : (
-                  <Eye className="w-4.5 h-4.5" />
+                  <Eye className="w-4 h-4" />
                 )}
               </button>
             </div>

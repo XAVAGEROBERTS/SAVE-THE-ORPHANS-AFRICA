@@ -243,3 +243,11 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Hide all scrollbars */
+::-webkit-scrollbar {
+  display: none;
+}
+* {
+  scrollbar-width: none;
+}

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createStaticClient } from "@/lib/supabase/static";
 
 // =====================================================================
 // PROGRAMS
@@ -158,5 +159,33 @@ export async function getGalleryImages() {
     src: row.image_url,
     alt: row.alt_text,
     category: row.category,
+  }));
+}
+
+// =====================================================================
+// TEAM MEMBERS
+// =====================================================================
+export async function getTeamMembers() {
+  const supabase = createStaticClient();
+  const { data, error } = await supabase
+    .from("team_members")
+    .select("*")
+    .eq("is_published", true)
+    .order("is_founder", { ascending: false })
+    .order("display_order", { ascending: true })
+    .limit(3);
+
+  if (error) {
+    console.error("Failed to load team:", error.message);
+    return [];
+  }
+
+  return (data || []).map((row) => ({
+    id: row.id,
+    name: row.name,
+    role: row.role,
+    bio: row.bio,
+    image_url: row.image_url || "",
+    is_founder: row.is_founder,
   }));
 }
