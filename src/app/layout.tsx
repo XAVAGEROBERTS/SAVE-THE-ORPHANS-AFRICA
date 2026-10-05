@@ -6,10 +6,6 @@ const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ||
   "https://save-the-orphans-africa.vercel.app";
 
-const LOGO_URL =
-  process.env.NEXT_PUBLIC_SITE_LOGO_URL ||
-  "https://mkzqskurodstcmzlevte.supabase.co/storage/v1/object/public/site-images/logo.png";
-
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
@@ -25,21 +21,6 @@ export const metadata: Metadata = {
     siteName: "Save the Orphans Africa",
   },
   twitter: { card: "summary_large_image" },
-  icons: {
-    icon: [
-      { url: LOGO_URL, type: "image/png" },
-      { url: LOGO_URL, sizes: "32x32", type: "image/png" },
-      { url: LOGO_URL, sizes: "16x16", type: "image/png" },
-    ],
-    shortcut: LOGO_URL,
-    apple: [{ url: LOGO_URL, sizes: "180x180", type: "image/png" }],
-    other: [
-      {
-        rel: "mask-icon",
-        url: LOGO_URL,
-      },
-    ],
-  },
 };
 
 export default function RootLayout({
@@ -50,6 +31,12 @@ export default function RootLayout({
   return (
     <html lang="en" data-scroll-behavior="smooth">
       <head>
+        {/* Hardcoded local favicon — bypasses all Next.js metadata quirks */}
+        <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+        <link rel="shortcut icon" type="image/svg+xml" href="/logo.svg" />
+        <link rel="apple-touch-icon" href="/logo.svg" />
+        <link rel="mask-icon" href="/logo.svg" color="#176B45" />
+
         <Script
           defer
           data-domain="save-the-orphans-africa.vercel.app"
