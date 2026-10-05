@@ -14,22 +14,23 @@ export async function middleware(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(
+          cookiesToSet: {
+            name: string;
+            value: string;
+            options?: any;
+          }[]
+        ) {
           cookiesToSet.forEach(({ name, value, options }) => {
-            // Sanitize cookie value — remove any characters browsers reject
             const safeValue = String(value || "")
               .replace(/[\r\n]/g, "")
               .trim();
 
             if (!safeValue) return;
 
-            // Only set cookies with valid options
             try {
               const safeOptions = options
-                ? {
-                    ...options,
-                    path: options.path || "/",
-                  }
+                ? { ...options, path: options.path || "/" }
                 : { path: "/" };
 
               request.cookies.set(name, safeValue);
