@@ -15,7 +15,11 @@ export function NewsletterForm() {
     setStatus("loading");
     setMessage("");
 
-    if (!email || !email.includes("@")) {
+    // Basic validation
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanName = name.trim();
+
+    if (!cleanEmail || !cleanEmail.includes("@")) {
       setStatus("error");
       setMessage("Please enter a valid email address.");
       return;
@@ -23,88 +27,114 @@ export function NewsletterForm() {
 
     try {
       const supabase = createClient();
-      const cleanEmail = email.toLowerCase().trim();
 
       // Check if already subscribed
-      const { data: existing } = await supabase
+      const { data: existing, error: lookupError } = await supabase
         .from("subscribers")
         .select("id, is_active, unsubscribe_token")
         .eq("email", cleanEmail)
         .maybeSingle();
 
-      let isNewSubscription = false;
+      if (lookupError) {
+        console.error("Lookup error:", lookupError);
+      }
 
       if (existing) {
         if (existing.is_active) {
           setStatus("error");
           setMessage("This email is already subscribed.");
           return;
-        } else {
-          const { error: updateError } = await supabase
-            .from("subscribers")
-            .update({
-              is_active: true,
-              unsubscribed_at: null,
-              subscribed_at: new Date().toISOString(),
-            })
-            .eq("id", existing.id);
+        }
 
-          if (updateError) throw updateError;
+        // Re-activate
+        const { error: updateError } = await supabase
+          .from("subscribers")
+          .update({
+            is_active: true,
+            unsubscribed_at: null,
+            subscribed_at: new Date().toISOString(),
+            name: cleanName || null,
+          })
+          .eq("id", existing.id);
 
-          // Send welcome email
-      await fetch("/api/email/welcome", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    email: cleanEmail,
-    name: name.trim() || null,
-  }),
-});
-
-          setStatus("success");
-          setMessage("Welcome back! You've been re-subscribed.");
-          setEmail("");
-          setName("");
+        if (updateError) {
+          console.error("Update error:", updateError);
+          setStatus("error");
+          setMessage(updateError.message || "Failed to re-subscribe.");
           return;
         }
+
+        // Send welcome email — fire and forget, non-blocking
+        try {
+          fetch("/api/email/welcome", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: cleanEmail,
+              name: cleanName || null,
+            }),
+          }).catch(() => {
+            /* ignore */
+          });
+        } catch {
+          /* ignore */
+        }
+
+        setStatus("success");
+        setMessage("Welcome back! You've been re-subscribed.");
+        setEmail("");
+        setName("");
+        return;
       }
 
-      const { error } = await supabase.from("subscribers").insert({
+      // New subscription
+      const { error: insertError } = await supabase.from("subscribers").insert({
         email: cleanEmail,
-        name: name.trim() || null,
+        name: cleanName || null,
       });
 
-      if (error) throw error;
-      isNewSubscription = true;
+      if (insertError) {
+        console.error("Insert error:", insertError);
+        setStatus("error");
+        setMessage(insertError.message || "Failed to subscribe.");
+        return;
+      }
 
       // Track analytics event
       if (typeof window !== "undefined" && (window as any).plausible) {
         (window as any).plausible("Newsletter Subscribed");
       }
 
-      // Send welcome email
+      // Send welcome email — fire and forget
       try {
-        await fetch("/api/email/welcome", {
+        fetch("/api/email/welcome", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: cleanEmail, name: name.trim() || null }),
+          body: JSON.stringify({
+            email: cleanEmail,
+            name: cleanName || null,
+          }),
+        }).catch(() => {
+          /* ignore */
         });
-      } catch (err) {
-        console.error("Welcome email failed:", err);
+      } catch {
+        /* ignore */
       }
 
-      // Notify admin
+      // Notify admin — fire and forget
       try {
-        await fetch("/api/email/notify", {
+        fetch("/api/email/notify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             type: "subscriber",
-            data: { email: cleanEmail, name: name.trim() || "—" },
+            data: { email: cleanEmail, name: cleanName || "—" },
           }),
+        }).catch(() => {
+          /* ignore */
         });
-      } catch (err) {
-        console.error("Admin notification failed:", err);
+      } catch {
+        /* ignore */
       }
 
       setStatus("success");
