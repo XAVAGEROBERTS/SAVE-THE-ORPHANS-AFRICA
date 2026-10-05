@@ -3,7 +3,12 @@ import Script from "next/script";
 import "./globals.css";
 
 const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || "https://save-the-orphans-africa.vercel.app";
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  "https://save-the-orphans-africa.vercel.app";
+
+const LOGO_URL =
+  process.env.NEXT_PUBLIC_SITE_LOGO_URL ||
+  "https://mkzqskurodstcmzlevte.supabase.co/storage/v1/object/public/site-images/logo.png";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -13,36 +18,27 @@ export const metadata: Metadata = {
   },
   description:
     "Save the Orphans Africa provides vulnerable children with care, education, protection, healthcare, and opportunities for a brighter future.",
-  keywords: [
-    "orphanage",
-    "nonprofit",
-    "Africa",
-    "children",
-    "charity",
-    "donate",
-    "volunteer",
-    "sponsor",
-  ],
-  authors: [{ name: "Save the Orphans Africa" }],
-  creator: "Save the Orphans Africa",
   openGraph: {
     type: "website",
     locale: "en_US",
     url: SITE_URL,
     siteName: "Save the Orphans Africa",
-    title: "Save the Orphans Africa | Every Child Deserves a Safe Home",
-    description:
-      "Providing vulnerable children with care, education, protection, healthcare, and opportunities for a brighter future.",
   },
-  twitter: {
-    card: "summary_large_image",
-    title: "Save the Orphans Africa",
-    description:
-      "Providing vulnerable children with care, education, protection, healthcare, and opportunities for a brighter future.",
-  },
-  robots: {
-    index: true,
-    follow: true,
+  twitter: { card: "summary_large_image" },
+  icons: {
+    icon: [
+      { url: LOGO_URL, type: "image/png" },
+      { url: LOGO_URL, sizes: "32x32", type: "image/png" },
+      { url: LOGO_URL, sizes: "16x16", type: "image/png" },
+    ],
+    shortcut: LOGO_URL,
+    apple: [{ url: LOGO_URL, sizes: "180x180", type: "image/png" }],
+    other: [
+      {
+        rel: "mask-icon",
+        url: LOGO_URL,
+      },
+    ],
   },
 };
 
@@ -54,7 +50,6 @@ export default function RootLayout({
   return (
     <html lang="en" data-scroll-behavior="smooth">
       <head>
-        {/* Plausible Analytics */}
         <Script
           defer
           data-domain="save-the-orphans-africa.vercel.app"

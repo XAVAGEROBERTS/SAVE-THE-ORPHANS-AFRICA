@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  Heart,
   LayoutDashboard,
   MessageSquare,
   Users,
@@ -28,6 +28,10 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { logClientActivity } from "@/lib/admin/client-activity";
 import { cn } from "@/utils/cn";
+
+const LOGO_URL =
+  process.env.NEXT_PUBLIC_SITE_LOGO_URL ||
+  "https://mkzqskurodstcmzlevte.supabase.co/storage/v1/object/public/site-images/logo.png";
 
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
@@ -134,11 +138,15 @@ export default function AdminLayout({
       >
         <div className="flex flex-col min-h-full">
           <div className="p-6 border-b border-white/10">
-            <Link href="/admin" className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-gold rounded-full flex items-center justify-center">
-                <Heart
-                  className="w-5 h-5 text-[#0B3D2E]"
-                  fill="currentColor"
+            <Link href="/admin" className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-full overflow-hidden relative bg-gold flex items-center justify-center shrink-0">
+                <Image
+                  src={LOGO_URL}
+                  alt="Save the Orphans Africa"
+                  fill
+                  className="object-cover"
+                  sizes="44px"
+                  unoptimized
                 />
               </div>
               <div>

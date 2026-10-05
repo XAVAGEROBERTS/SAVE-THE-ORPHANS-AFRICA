@@ -1,6 +1,11 @@
 import Link from "next/link";
-import { Heart, Mail, Phone, MapPin } from "lucide-react";
+import Image from "next/image";
+import { Mail, Phone, MapPin } from "lucide-react";
 import { NewsletterForm } from "@/components/Newsletter/NewsletterForm";
+
+const LOGO_URL =
+  process.env.NEXT_PUBLIC_SITE_LOGO_URL ||
+  "https://mkzqskurodstcmzlevte.supabase.co/storage/v1/object/public/site-images/logo.png";
 
 const quickLinks = [
   { href: "/about", label: "About Us" },
@@ -20,7 +25,6 @@ const getInvolvedLinks = [
   { href: "/get-involved", label: "Fundraise" },
 ];
 
-// Simple line-based SVG icons for social networks
 function FacebookIcon({ className }: { className?: string }) {
   return (
     <svg
@@ -121,8 +125,15 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
           <div>
             <Link href="/" className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 bg-gold rounded-full flex items-center justify-center">
-                <Heart className="w-5 h-5 text-[#0B3D2E]" fill="currentColor" />
+              <div className="w-11 h-11 rounded-full overflow-hidden relative bg-gold shrink-0">
+                <Image
+                  src={LOGO_URL}
+                  alt="Save the Orphans Africa"
+                  fill
+                  className="object-cover"
+                  sizes="44px"
+                  unoptimized
+                />
               </div>
               <div>
                 <span className="font-bold text-white text-lg leading-tight block">
@@ -268,4 +279,4 @@ export function Footer() {
       </div>
     </footer>
   );
-} 
+}

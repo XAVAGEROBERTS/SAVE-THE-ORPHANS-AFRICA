@@ -2,9 +2,14 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Menu, X, Heart } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { cn } from "@/utils/cn";
+
+const LOGO_URL =
+  process.env.NEXT_PUBLIC_SITE_LOGO_URL ||
+  "https://mkzqskurodstcmzlevte.supabase.co/storage/v1/object/public/site-images/logo.png";
 
 const navLinks = [
   { href: "/", label: "Home" },
@@ -75,8 +80,15 @@ export function Navbar() {
       >
         <div className="flex items-center justify-between h-14 px-4">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-              <Heart className="w-4 h-4 text-white" fill="currentColor" />
+            <div className="w-8 h-8 rounded-full overflow-hidden relative bg-primary shrink-0">
+              <Image
+                src={LOGO_URL}
+                alt="Save the Orphans Africa"
+                fill
+                className="object-cover"
+                sizes="32px"
+                unoptimized
+              />
             </div>
             <div>
               <span className="font-bold text-primary text-sm leading-tight block">
@@ -94,11 +106,7 @@ export function Navbar() {
             aria-label={isOpen ? "Close menu" : "Open menu"}
             aria-expanded={isOpen}
           >
-            {isOpen ? (
-              <X className="w-6 h-6" />
-            ) : (
-              <Menu className="w-6 h-6" />
-            )}
+            {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
         </div>
       </header>
@@ -126,8 +134,15 @@ export function Navbar() {
             href="/"
             className="flex items-center gap-2.5 shrink-0 px-2 py-1"
           >
-            <div className="w-9 h-9 bg-primary rounded-full flex items-center justify-center">
-              <Heart className="w-4 h-4 text-white" fill="currentColor" />
+            <div className="w-9 h-9 rounded-full overflow-hidden relative bg-primary shrink-0">
+              <Image
+                src={LOGO_URL}
+                alt="Save the Orphans Africa"
+                fill
+                className="object-cover"
+                sizes="36px"
+                unoptimized
+              />
             </div>
             <div>
               <span className="font-bold text-[15px] leading-tight block whitespace-nowrap text-primary-dark">
