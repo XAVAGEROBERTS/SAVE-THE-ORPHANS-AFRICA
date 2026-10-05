@@ -5,6 +5,7 @@ import { Search, Trash2, Mail, Phone, Calendar } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeTable } from "@/hooks/useRealtimeTable";
 import { formatDate } from "@/utils/format";
+import { BulkActionsBar } from "@/components/admin/BulkActionsBar";
 
 interface Message {
   id: string;
@@ -18,7 +19,7 @@ interface Message {
 }
 
 export default function MessagesPage() {
-  const { data: messages, setData: setMessages, isLoading } = useRealtimeTable<Message>({
+  const { data: messages, isLoading } = useRealtimeTable<Message>({
     table: "contact_messages",
     orderBy: { column: "created_at", ascending: false },
   });
@@ -26,6 +27,7 @@ export default function MessagesPage() {
   const [filtered, setFiltered] = useState<Message[]>([]);
   const [search, setSearch] = useState("");
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!search) {
@@ -44,12 +46,77 @@ export default function MessagesPage() {
     }
   }, [search, messages]);
 
-  async function handleDelete(id: string) {
+  function toggleSelect(id: string) {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === filtered.length && filtered.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map((m) => m.id)));
+    }
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set());
+  }
+
+  async function handleDeleteSingle(id: string) {
     if (!confirm("Delete this message permanently?")) return;
     const supabase = createClient();
     await supabase.from("contact_messages").delete().eq("id", id);
-    // No need to update state — realtime will handle it
     if (selectedMessage?.id === id) setSelectedMessage(null);
+  }
+
+  async function handleBulkDelete() {
+    const count = selectedIds.size;
+    if (!confirm(`Delete ${count} message${count > 1 ? "s" : ""} permanently?`))
+      return;
+
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("contact_messages")
+      .delete()
+      .in("id", Array.from(selectedIds));
+
+    if (error) {
+      alert("Failed to delete: " + error.message);
+      return;
+    }
+
+    setSelectedIds(new Set());
+    if (selectedMessage && selectedIds.has(selectedMessage.id)) {
+      setSelectedMessage(null);
+    }
+  }
+
+  function handleBulkExport() {
+    const selected = messages.filter((m) => selectedIds.has(m.id));
+    const headers = ["Name", "Email", "Phone", "Subject", "Message", "Status", "Date"];
+    const rows = selected.map((m) => [
+      m.full_name,
+      m.email,
+      m.phone || "",
+      m.subject,
+      m.message.replace(/"/g, '""'),
+      m.status,
+      new Date(m.created_at).toISOString(),
+    ]);
+    const csv = [headers, ...rows]
+      .map((r) => r.map((v) => `"${v}"`).join(","))
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `messages-selected-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   return (
@@ -86,37 +153,70 @@ export default function MessagesPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* List */}
           <div className="lg:col-span-1 card divide-y divide-light overflow-hidden">
-            <div className="max-h-[calc(100vh-250px)] overflow-y-auto">
-              {filtered.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => setSelectedMessage(m)}
-                  className={`w-full text-left p-4 hover:bg-light transition-colors ${
-                    selectedMessage?.id === m.id
-                      ? "bg-primary/5 border-l-4 border-primary"
-                      : ""
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2 mb-1">
-                    <span className="font-semibold text-dark text-sm truncate">
-                      {m.full_name}
-                    </span>
-                    <span className="text-xs text-dark/40 shrink-0">
-                      {new Date(m.created_at).toLocaleDateString()}
-                    </span>
+            {/* Select All header */}
+            <div className="p-3 bg-light border-b border-light flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={
+                  filtered.length > 0 && selectedIds.size === filtered.length
+                }
+                onChange={toggleSelectAll}
+                className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+              />
+              <span className="text-xs text-dark/60 font-medium">
+                {selectedIds.size > 0
+                  ? `${selectedIds.size} selected`
+                  : "Select all"}
+              </span>
+            </div>
+
+            <div className="max-h-[calc(100vh-320px)] overflow-y-auto">
+              {filtered.map((m) => {
+                const isSelected = selectedIds.has(m.id);
+                const isOpen = selectedMessage?.id === m.id;
+
+                return (
+                  <div
+                    key={m.id}
+                    className={`flex items-start gap-2 p-3 hover:bg-light transition-colors ${
+                      isOpen ? "bg-primary/5 border-l-4 border-primary" : ""
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleSelect(m.id)}
+                      className="mt-1 w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary shrink-0"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <button
+                      onClick={() => setSelectedMessage(m)}
+                      className="flex-1 text-left min-w-0"
+                    >
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <span className="font-semibold text-dark text-sm truncate">
+                          {m.full_name}
+                        </span>
+                        <span className="text-xs text-dark/40 shrink-0">
+                          {new Date(m.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <div className="text-xs text-primary font-medium truncate mb-1">
+                        {m.subject}
+                      </div>
+                      <div className="text-xs text-dark/60 line-clamp-2">
+                        {m.message}
+                      </div>
+                    </button>
                   </div>
-                  <div className="text-xs text-primary font-medium truncate mb-1">
-                    {m.subject}
-                  </div>
-                  <div className="text-xs text-dark/60 line-clamp-2">
-                    {m.message}
-                  </div>
-                </button>
-              ))}
+                );
+              })}
             </div>
           </div>
 
+          {/* Detail */}
           <div className="lg:col-span-2 card p-6">
             {selectedMessage ? (
               <div>
@@ -143,8 +243,9 @@ export default function MessagesPage() {
                     </div>
                   </div>
                   <button
-                    onClick={() => handleDelete(selectedMessage.id)}
+                    onClick={() => handleDeleteSingle(selectedMessage.id)}
                     className="p-2 rounded-lg hover:bg-red-50 text-red-600"
+                    aria-label="Delete"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -178,6 +279,13 @@ export default function MessagesPage() {
           </div>
         </div>
       )}
+
+      <BulkActionsBar
+        selectedCount={selectedIds.size}
+        onClear={clearSelection}
+        onExport={handleBulkExport}
+        onDelete={handleBulkDelete}
+      />
     </div>
   );
 }

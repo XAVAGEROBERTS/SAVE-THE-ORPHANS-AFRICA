@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search, Download } from "lucide-react";
+import { Search, Download, Trash2 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 import { useRealtimeTable } from "@/hooks/useRealtimeTable";
 import { formatDate } from "@/utils/format";
+import { BulkActionsBar } from "@/components/admin/BulkActionsBar";
 
 interface Subscriber {
   id: string;
@@ -22,6 +24,7 @@ export default function SubscribersPage() {
 
   const [filtered, setFiltered] = useState<Subscriber[]>([]);
   const [search, setSearch] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!search) {
@@ -38,7 +41,26 @@ export default function SubscribersPage() {
     }
   }, [search, subscribers]);
 
-  function exportCSV() {
+  function toggleSelect(id: string) {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === filtered.length && filtered.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map((s) => s.id)));
+    }
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set());
+  }
+
+  function exportAll() {
     const headers = ["Email", "Name", "Subscribed At", "Status"];
     const rows = filtered.map((sub) => [
       sub.email,
@@ -56,6 +78,45 @@ export default function SubscribersPage() {
     a.download = `subscribers-${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  function exportSelected() {
+    const items = subscribers.filter((s) => selectedIds.has(s.id));
+    const headers = ["Email", "Name", "Subscribed At", "Status"];
+    const rows = items.map((sub) => [
+      sub.email,
+      sub.name || "",
+      new Date(sub.subscribed_at).toISOString(),
+      sub.is_active ? "Active" : "Unsubscribed",
+    ]);
+    const csv = [headers, ...rows]
+      .map((r) => r.map((v) => `"${v}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `subscribers-selected-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleBulkDelete() {
+    const count = selectedIds.size;
+    if (!confirm(`Delete ${count} subscriber${count > 1 ? "s" : ""}?`)) return;
+
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("subscribers")
+      .delete()
+      .in("id", Array.from(selectedIds));
+
+    if (error) {
+      alert("Failed to delete: " + error.message);
+      return;
+    }
+
+    setSelectedIds(new Set());
   }
 
   return (
@@ -83,9 +144,9 @@ export default function SubscribersPage() {
               className="form-input pl-9 w-64"
             />
           </div>
-          <button onClick={exportCSV} className="btn-primary text-sm">
+          <button onClick={exportAll} className="btn-primary text-sm">
             <Download className="w-4 h-4" />
-            Export CSV
+            Export All
           </button>
         </div>
       </div>
@@ -101,6 +162,14 @@ export default function SubscribersPage() {
           <table className="w-full">
             <thead className="bg-light">
               <tr>
+                <th className="w-12 px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                </th>
                 <th className="text-left px-6 py-3 text-sm font-semibold text-dark">Name</th>
                 <th className="text-left px-6 py-3 text-sm font-semibold text-dark">Email</th>
                 <th className="text-left px-6 py-3 text-sm font-semibold text-dark">Subscribed</th>
@@ -108,30 +177,51 @@ export default function SubscribersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-light">
-              {filtered.map((sub) => (
-                <tr key={sub.id} className="hover:bg-light/50">
-                  <td className="px-6 py-4 text-sm text-dark">{sub.name || "—"}</td>
-                  <td className="px-6 py-4 text-sm text-dark">{sub.email}</td>
-                  <td className="px-6 py-4 text-sm text-dark/60">
-                    {formatDate(sub.subscribed_at)}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`text-xs px-2 py-1 rounded-full ${
-                        sub.is_active
-                          ? "bg-green-100 text-green-800"
-                          : "bg-gray-100 text-gray-600"
-                      }`}
-                    >
-                      {sub.is_active ? "Active" : "Unsubscribed"}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+              {filtered.map((sub) => {
+                const isSelected = selectedIds.has(sub.id);
+                return (
+                  <tr
+                    key={sub.id}
+                    className={`hover:bg-light/50 ${isSelected ? "bg-primary/5" : ""}`}
+                  >
+                    <td className="px-4 py-4">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelect(sub.id)}
+                        className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+                      />
+                    </td>
+                    <td className="px-6 py-4 text-sm text-dark">{sub.name || "—"}</td>
+                    <td className="px-6 py-4 text-sm text-dark">{sub.email}</td>
+                    <td className="px-6 py-4 text-sm text-dark/60">
+                      {formatDate(sub.subscribed_at)}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`text-xs px-2 py-1 rounded-full ${
+                          sub.is_active
+                            ? "bg-green-100 text-green-800"
+                            : "bg-gray-100 text-gray-600"
+                        }`}
+                      >
+                        {sub.is_active ? "Active" : "Unsubscribed"}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       )}
+
+      <BulkActionsBar
+        selectedCount={selectedIds.size}
+        onClear={clearSelection}
+        onExport={exportSelected}
+        onDelete={handleBulkDelete}
+      />
     </div>
   );
 }

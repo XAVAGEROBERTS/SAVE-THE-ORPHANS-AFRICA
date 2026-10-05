@@ -5,6 +5,7 @@ import { Search, Trash2, Mail, Phone, MapPin, Calendar } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeTable } from "@/hooks/useRealtimeTable";
 import { formatDate } from "@/utils/format";
+import { BulkActionsBar } from "@/components/admin/BulkActionsBar";
 
 interface Volunteer {
   id: string;
@@ -30,7 +31,7 @@ const statusColors: Record<string, string> = {
 };
 
 export default function VolunteersPage() {
-  const { data: volunteers, setData: setVolunteers, isLoading } = useRealtimeTable<Volunteer>({
+  const { data: volunteers, isLoading } = useRealtimeTable<Volunteer>({
     table: "volunteer_applications",
     orderBy: { column: "created_at", ascending: false },
   });
@@ -38,6 +39,7 @@ export default function VolunteersPage() {
   const [filtered, setFiltered] = useState<Volunteer[]>([]);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Volunteer | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!search) {
@@ -56,7 +58,6 @@ export default function VolunteersPage() {
     }
   }, [search, volunteers]);
 
-  // Keep selected in sync with realtime updates
   useEffect(() => {
     if (selected) {
       const updated = volunteers.find((v) => v.id === selected.id);
@@ -65,19 +66,98 @@ export default function VolunteersPage() {
     }
   }, [volunteers]);
 
+  function toggleSelect(id: string) {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === filtered.length && filtered.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map((v) => v.id)));
+    }
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set());
+  }
+
   async function updateStatus(id: string, status: string) {
+    const supabase = createClient();
+    await supabase.from("volunteer_applications").update({ status }).eq("id", id);
+  }
+
+  async function handleBulkStatus(status: string) {
+    const count = selectedIds.size;
+    if (!confirm(`Mark ${count} application${count > 1 ? "s" : ""} as "${status}"?`))
+      return;
+
     const supabase = createClient();
     await supabase
       .from("volunteer_applications")
       .update({ status })
-      .eq("id", id);
-    // Realtime updates the state automatically
+      .in("id", Array.from(selectedIds));
+
+    setSelectedIds(new Set());
   }
 
-  async function handleDelete(id: string) {
+  async function handleDeleteSingle(id: string) {
     if (!confirm("Delete this application permanently?")) return;
     const supabase = createClient();
     await supabase.from("volunteer_applications").delete().eq("id", id);
+  }
+
+  async function handleBulkDelete() {
+    const count = selectedIds.size;
+    if (!confirm(`Delete ${count} application${count > 1 ? "s" : ""} permanently?`))
+      return;
+
+    const supabase = createClient();
+    await supabase
+      .from("volunteer_applications")
+      .delete()
+      .in("id", Array.from(selectedIds));
+
+    setSelectedIds(new Set());
+    if (selected && selectedIds.has(selected.id)) setSelected(null);
+  }
+
+  function handleBulkExport() {
+    const selectedItems = volunteers.filter((v) => selectedIds.has(v.id));
+    const headers = [
+      "Name",
+      "Email",
+      "Phone",
+      "Country",
+      "Area of Interest",
+      "Availability",
+      "Status",
+      "Applied",
+    ];
+    const rows = selectedItems.map((v) => [
+      v.full_name,
+      v.email,
+      v.phone,
+      v.country,
+      v.area_of_interest,
+      v.availability,
+      v.status,
+      new Date(v.created_at).toISOString(),
+    ]);
+    const csv = [headers, ...rows]
+      .map((r) => r.map((c) => `"${c}"`).join(","))
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `volunteers-selected-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   return (
@@ -114,37 +194,63 @@ export default function VolunteersPage() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-1 card divide-y divide-light overflow-hidden">
-            <div className="max-h-[calc(100vh-250px)] overflow-y-auto">
-              {filtered.map((v) => (
-                <button
-                  key={v.id}
-                  onClick={() => setSelected(v)}
-                  className={`w-full text-left p-4 hover:bg-light transition-colors ${
-                    selected?.id === v.id
-                      ? "bg-primary/5 border-l-4 border-primary"
-                      : ""
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2 mb-1">
-                    <span className="font-semibold text-dark text-sm truncate">
-                      {v.full_name}
-                    </span>
-                    <span
-                      className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${
-                        statusColors[v.status] || statusColors.pending
-                      }`}
+            <div className="p-3 bg-light border-b border-light flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                onChange={toggleSelectAll}
+                className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+              />
+              <span className="text-xs text-dark/60 font-medium">
+                {selectedIds.size > 0 ? `${selectedIds.size} selected` : "Select all"}
+              </span>
+            </div>
+
+            <div className="max-h-[calc(100vh-320px)] overflow-y-auto">
+              {filtered.map((v) => {
+                const isSelected = selectedIds.has(v.id);
+                const isOpen = selected?.id === v.id;
+
+                return (
+                  <div
+                    key={v.id}
+                    className={`flex items-start gap-2 p-3 hover:bg-light transition-colors ${
+                      isOpen ? "bg-primary/5 border-l-4 border-primary" : ""
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleSelect(v.id)}
+                      className="mt-1 w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary shrink-0"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <button
+                      onClick={() => setSelected(v)}
+                      className="flex-1 text-left min-w-0"
                     >
-                      {v.status}
-                    </span>
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <span className="font-semibold text-dark text-sm truncate">
+                          {v.full_name}
+                        </span>
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${
+                            statusColors[v.status] || statusColors.pending
+                          }`}
+                        >
+                          {v.status}
+                        </span>
+                      </div>
+                      <div className="text-xs text-primary font-medium truncate mb-1">
+                        {v.area_of_interest}
+                      </div>
+                      <div className="text-xs text-dark/60 truncate">
+                        {v.country} · {v.availability}
+                      </div>
+                    </button>
                   </div>
-                  <div className="text-xs text-primary font-medium truncate mb-1">
-                    {v.area_of_interest}
-                  </div>
-                  <div className="text-xs text-dark/60 truncate">
-                    {v.country} · {v.availability}
-                  </div>
-                </button>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -176,8 +282,9 @@ export default function VolunteersPage() {
                     </div>
                   </div>
                   <button
-                    onClick={() => handleDelete(selected.id)}
+                    onClick={() => handleDeleteSingle(selected.id)}
                     className="p-2 rounded-lg hover:bg-red-50 text-red-600"
+                    aria-label="Delete"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -193,11 +300,11 @@ export default function VolunteersPage() {
                     <p className="text-dark/70">{selected.availability}</p>
                   </div>
                   <div>
-                    <strong className="text-dark block mb-1">Skills & Qualifications</strong>
+                    <strong className="text-dark block mb-1">Skills</strong>
                     <p className="text-dark/70 whitespace-pre-line">{selected.skills}</p>
                   </div>
                   <div>
-                    <strong className="text-dark block mb-1">Why They Want to Volunteer</strong>
+                    <strong className="text-dark block mb-1">Motivation</strong>
                     <p className="text-dark/70 whitespace-pre-line">{selected.motivation}</p>
                   </div>
                   {selected.previous_experience && (
@@ -249,6 +356,29 @@ export default function VolunteersPage() {
           </div>
         </div>
       )}
+
+      <BulkActionsBar
+        selectedCount={selectedIds.size}
+        onClear={clearSelection}
+        onExport={handleBulkExport}
+        onDelete={handleBulkDelete}
+        extraActions={
+          <>
+            <button
+              onClick={() => handleBulkStatus("approved")}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium bg-green-500/20 text-green-200 hover:bg-green-500/30 transition-colors"
+            >
+              Approve
+            </button>
+            <button
+              onClick={() => handleBulkStatus("rejected")}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium bg-red-500/20 text-red-200 hover:bg-red-500/30 transition-colors"
+            >
+              Reject
+            </button>
+          </>
+        }
+      />
     </div>
   );
 }

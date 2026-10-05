@@ -22,6 +22,7 @@ import {
   Quote,
   Send,
   Settings,
+  Activity,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/utils/cn";
@@ -39,6 +40,7 @@ const navItems = [
   { href: "/admin/testimonials", label: "Testimonials", icon: Quote },
   { href: "/admin/gallery", label: "Gallery", icon: ImageIcon },
   { href: "/admin/users", label: "Admin Users", icon: Shield },
+  { href: "/admin/activity", label: "Activity Log", icon: Activity },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
@@ -74,7 +76,6 @@ export default function AdminLayout({
     router.refresh();
   };
 
-  // Don't wrap the login page in the admin layout
   if (pathname === "/admin/login") {
     return <>{children}</>;
   }
