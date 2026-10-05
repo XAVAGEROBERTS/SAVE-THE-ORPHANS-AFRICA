@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search, Trash2, Mail, Phone, MapPin, Calendar, CheckCircle, XCircle } from "lucide-react";
+import { Search, Trash2, Mail, Phone, MapPin, Calendar } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { useRealtimeTable } from "@/hooks/useRealtimeTable";
 import { formatDate } from "@/utils/format";
 
 interface Volunteer {
@@ -29,15 +30,14 @@ const statusColors: Record<string, string> = {
 };
 
 export default function VolunteersPage() {
-  const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
+  const { data: volunteers, setData: setVolunteers, isLoading } = useRealtimeTable<Volunteer>({
+    table: "volunteer_applications",
+    orderBy: { column: "created_at", ascending: false },
+  });
+
   const [filtered, setFiltered] = useState<Volunteer[]>([]);
   const [search, setSearch] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
   const [selected, setSelected] = useState<Volunteer | null>(null);
-
-  useEffect(() => {
-    loadVolunteers();
-  }, []);
 
   useEffect(() => {
     if (!search) {
@@ -47,41 +47,37 @@ export default function VolunteersPage() {
       setFiltered(
         volunteers.filter(
           (v) =>
-            v.full_name.toLowerCase().includes(s) ||
-            v.email.toLowerCase().includes(s) ||
-            v.country.toLowerCase().includes(s) ||
-            v.area_of_interest.toLowerCase().includes(s)
+            v.full_name?.toLowerCase().includes(s) ||
+            v.email?.toLowerCase().includes(s) ||
+            v.country?.toLowerCase().includes(s) ||
+            v.area_of_interest?.toLowerCase().includes(s)
         )
       );
     }
   }, [search, volunteers]);
 
-  async function loadVolunteers() {
-    setIsLoading(true);
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("volunteer_applications")
-      .select("*")
-      .order("created_at", { ascending: false });
-    setVolunteers((data as Volunteer[]) || []);
-    setIsLoading(false);
-  }
+  // Keep selected in sync with realtime updates
+  useEffect(() => {
+    if (selected) {
+      const updated = volunteers.find((v) => v.id === selected.id);
+      if (updated) setSelected(updated);
+      else setSelected(null);
+    }
+  }, [volunteers]);
 
   async function updateStatus(id: string, status: string) {
     const supabase = createClient();
-    await supabase.from("volunteer_applications").update({ status }).eq("id", id);
-    setVolunteers((prev) =>
-      prev.map((v) => (v.id === id ? { ...v, status } : v))
-    );
-    if (selected?.id === id) setSelected({ ...selected, status });
+    await supabase
+      .from("volunteer_applications")
+      .update({ status })
+      .eq("id", id);
+    // Realtime updates the state automatically
   }
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this application permanently?")) return;
     const supabase = createClient();
     await supabase.from("volunteer_applications").delete().eq("id", id);
-    setVolunteers(volunteers.filter((v) => v.id !== id));
-    if (selected?.id === id) setSelected(null);
   }
 
   return (
@@ -89,8 +85,12 @@ export default function VolunteersPage() {
       <div className="mb-8 flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold text-dark">Volunteer Applications</h1>
-          <p className="text-dark/60 mt-1">
-            {volunteers.length} total application{volunteers.length !== 1 ? "s" : ""}
+          <p className="text-dark/60 mt-1 flex items-center gap-2">
+            {volunteers.length} total
+            <span className="inline-flex items-center gap-1 text-xs text-green-600">
+              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              Live
+            </span>
           </p>
         </div>
         <div className="relative">
@@ -120,7 +120,9 @@ export default function VolunteersPage() {
                   key={v.id}
                   onClick={() => setSelected(v)}
                   className={`w-full text-left p-4 hover:bg-light transition-colors ${
-                    selected?.id === v.id ? "bg-primary/5 border-l-4 border-primary" : ""
+                    selected?.id === v.id
+                      ? "bg-primary/5 border-l-4 border-primary"
+                      : ""
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2 mb-1">
@@ -175,8 +177,7 @@ export default function VolunteersPage() {
                   </div>
                   <button
                     onClick={() => handleDelete(selected.id)}
-                    className="p-2 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
-                    aria-label="Delete"
+                    className="p-2 rounded-lg hover:bg-red-50 text-red-600"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -210,9 +211,7 @@ export default function VolunteersPage() {
                 </div>
 
                 <div className="mt-8 pt-6 border-t border-light">
-                  <p className="text-sm font-semibold text-dark mb-3">
-                    Update Status
-                  </p>
+                  <p className="text-sm font-semibold text-dark mb-3">Update Status</p>
                   <div className="flex flex-wrap gap-2">
                     {["pending", "reviewed", "approved", "rejected", "contacted"].map(
                       (s) => (

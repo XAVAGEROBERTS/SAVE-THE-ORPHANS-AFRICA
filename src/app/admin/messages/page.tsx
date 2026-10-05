@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Search, Trash2, Mail, Phone, Calendar } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { useRealtimeTable } from "@/hooks/useRealtimeTable";
 import { formatDate } from "@/utils/format";
 
 interface Message {
@@ -17,15 +18,14 @@ interface Message {
 }
 
 export default function MessagesPage() {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const { data: messages, setData: setMessages, isLoading } = useRealtimeTable<Message>({
+    table: "contact_messages",
+    orderBy: { column: "created_at", ascending: false },
+  });
+
   const [filtered, setFiltered] = useState<Message[]>([]);
   const [search, setSearch] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
-
-  useEffect(() => {
-    loadMessages();
-  }, []);
 
   useEffect(() => {
     if (!search) {
@@ -35,31 +35,20 @@ export default function MessagesPage() {
       setFiltered(
         messages.filter(
           (m) =>
-            m.full_name.toLowerCase().includes(s) ||
-            m.email.toLowerCase().includes(s) ||
-            m.subject.toLowerCase().includes(s) ||
-            m.message.toLowerCase().includes(s)
+            m.full_name?.toLowerCase().includes(s) ||
+            m.email?.toLowerCase().includes(s) ||
+            m.subject?.toLowerCase().includes(s) ||
+            m.message?.toLowerCase().includes(s)
         )
       );
     }
   }, [search, messages]);
 
-  async function loadMessages() {
-    setIsLoading(true);
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("contact_messages")
-      .select("*")
-      .order("created_at", { ascending: false });
-    setMessages((data as Message[]) || []);
-    setIsLoading(false);
-  }
-
   async function handleDelete(id: string) {
     if (!confirm("Delete this message permanently?")) return;
     const supabase = createClient();
     await supabase.from("contact_messages").delete().eq("id", id);
-    setMessages(messages.filter((m) => m.id !== id));
+    // No need to update state — realtime will handle it
     if (selectedMessage?.id === id) setSelectedMessage(null);
   }
 
@@ -68,8 +57,12 @@ export default function MessagesPage() {
       <div className="mb-8 flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold text-dark">Contact Messages</h1>
-          <p className="text-dark/60 mt-1">
-            {messages.length} total message{messages.length !== 1 ? "s" : ""}
+          <p className="text-dark/60 mt-1 flex items-center gap-2">
+            {messages.length} total
+            <span className="inline-flex items-center gap-1 text-xs text-green-600">
+              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              Live
+            </span>
           </p>
         </div>
         <div className="relative">
@@ -93,7 +86,6 @@ export default function MessagesPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* List */}
           <div className="lg:col-span-1 card divide-y divide-light overflow-hidden">
             <div className="max-h-[calc(100vh-250px)] overflow-y-auto">
               {filtered.map((m) => (
@@ -101,7 +93,9 @@ export default function MessagesPage() {
                   key={m.id}
                   onClick={() => setSelectedMessage(m)}
                   className={`w-full text-left p-4 hover:bg-light transition-colors ${
-                    selectedMessage?.id === m.id ? "bg-primary/5 border-l-4 border-primary" : ""
+                    selectedMessage?.id === m.id
+                      ? "bg-primary/5 border-l-4 border-primary"
+                      : ""
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2 mb-1">
@@ -123,7 +117,6 @@ export default function MessagesPage() {
             </div>
           </div>
 
-          {/* Detail */}
           <div className="lg:col-span-2 card p-6">
             {selectedMessage ? (
               <div>
@@ -151,22 +144,22 @@ export default function MessagesPage() {
                   </div>
                   <button
                     onClick={() => handleDelete(selectedMessage.id)}
-                    className="p-2 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
-                    aria-label="Delete"
+                    className="p-2 rounded-lg hover:bg-red-50 text-red-600"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
 
                 <div className="mb-4 text-sm text-dark/60">
-                  <strong className="text-dark">From:</strong> {selectedMessage.full_name}
+                  <strong className="text-dark">From:</strong>{" "}
+                  {selectedMessage.full_name}
                 </div>
 
                 <div className="text-dark/80 leading-relaxed whitespace-pre-line">
                   {selectedMessage.message}
                 </div>
 
-                <div className="mt-8 flex gap-3">
+                <div className="mt-8">
                   <a
                     href={`mailto:${selectedMessage.email}?subject=Re: ${encodeURIComponent(selectedMessage.subject)}`}
                     className="btn-primary text-sm"

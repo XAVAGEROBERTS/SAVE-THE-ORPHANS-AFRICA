@@ -31,9 +31,9 @@ export default function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    async function load() {
-      const supabase = createClient();
+    const supabase = createClient();
 
+    async function load() {
       const [messages, volunteers, subscribers, donations] = await Promise.all([
         supabase.from("contact_messages").select("id", { count: "exact", head: true }),
         supabase.from("volunteer_applications").select("id", { count: "exact", head: true }),
@@ -58,7 +58,21 @@ export default function AdminDashboard() {
       });
       setIsLoading(false);
     }
+
     load();
+
+    // Realtime subscriptions for each table
+    const channel = supabase
+      .channel("admin-dashboard-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "contact_messages" }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "volunteer_applications" }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "subscribers" }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "donations" }, load)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const cards = [
@@ -95,13 +109,18 @@ export default function AdminDashboard() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-dark">Dashboard</h1>
+        <h1 className="text-3xl font-bold text-dark flex items-center gap-3">
+          Dashboard
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-green-600 bg-green-50 px-2.5 py-1 rounded-full">
+            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+            Live
+          </span>
+        </h1>
         <p className="text-dark/60 mt-1">
           Overview of everything happening on your website
         </p>
       </div>
 
-      {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {cards.map((card) => (
           <Link
@@ -123,7 +142,6 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      {/* Donations Total */}
       <div className="card p-6 mb-8 bg-gradient-to-r from-primary to-primary-dark text-white">
         <div className="flex items-center justify-between">
           <div>
@@ -140,37 +158,6 @@ export default function AdminDashboard() {
             </div>
           </div>
           <DollarSign className="w-16 h-16 text-white/20" />
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="card p-6">
-        <h2 className="text-lg font-bold text-dark mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Link
-            href="/admin/messages"
-            className="p-4 rounded-lg border border-light hover:border-primary hover:bg-primary/5 transition-colors"
-          >
-            <MessageSquare className="w-6 h-6 text-primary mb-2" />
-            <div className="font-semibold text-dark text-sm">View Messages</div>
-            <div className="text-xs text-dark/60">Contact form submissions</div>
-          </Link>
-          <Link
-            href="/admin/volunteers"
-            className="p-4 rounded-lg border border-light hover:border-primary hover:bg-primary/5 transition-colors"
-          >
-            <Users className="w-6 h-6 text-primary mb-2" />
-            <div className="font-semibold text-dark text-sm">Review Volunteers</div>
-            <div className="text-xs text-dark/60">Applications waiting</div>
-          </Link>
-          <Link
-            href="/admin/donations"
-            className="p-4 rounded-lg border border-light hover:border-primary hover:bg-primary/5 transition-colors"
-          >
-            <DollarSign className="w-6 h-6 text-primary mb-2" />
-            <div className="font-semibold text-dark text-sm">View Donations</div>
-            <div className="text-xs text-dark/60">All transactions</div>
-          </Link>
         </div>
       </div>
     </div>

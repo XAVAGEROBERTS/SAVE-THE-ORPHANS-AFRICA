@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Search, Download } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { useRealtimeTable } from "@/hooks/useRealtimeTable";
 import { formatDate } from "@/utils/format";
 
 interface Subscriber {
@@ -15,14 +15,13 @@ interface Subscriber {
 }
 
 export default function SubscribersPage() {
-  const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
+  const { data: subscribers, isLoading } = useRealtimeTable<Subscriber>({
+    table: "subscribers",
+    orderBy: { column: "subscribed_at", ascending: false },
+  });
+
   const [filtered, setFiltered] = useState<Subscriber[]>([]);
   const [search, setSearch] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    loadSubscribers();
-  }, []);
 
   useEffect(() => {
     if (!search) {
@@ -32,23 +31,12 @@ export default function SubscribersPage() {
       setFiltered(
         subscribers.filter(
           (sub) =>
-            sub.email.toLowerCase().includes(s) ||
+            sub.email?.toLowerCase().includes(s) ||
             (sub.name?.toLowerCase().includes(s) ?? false)
         )
       );
     }
   }, [search, subscribers]);
-
-  async function loadSubscribers() {
-    setIsLoading(true);
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("subscribers")
-      .select("*")
-      .order("subscribed_at", { ascending: false });
-    setSubscribers((data as Subscriber[]) || []);
-    setIsLoading(false);
-  }
 
   function exportCSV() {
     const headers = ["Email", "Name", "Subscribed At", "Status"];
@@ -58,7 +46,9 @@ export default function SubscribersPage() {
       new Date(sub.subscribed_at).toISOString(),
       sub.is_active ? "Active" : "Unsubscribed",
     ]);
-    const csv = [headers, ...rows].map((r) => r.map((v) => `"${v}"`).join(",")).join("\n");
+    const csv = [headers, ...rows]
+      .map((r) => r.map((v) => `"${v}"`).join(","))
+      .join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -73,9 +63,13 @@ export default function SubscribersPage() {
       <div className="mb-8 flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold text-dark">Newsletter Subscribers</h1>
-          <p className="text-dark/60 mt-1">
+          <p className="text-dark/60 mt-1 flex items-center gap-2">
             {subscribers.filter((s) => s.is_active).length} active ·{" "}
             {subscribers.length} total
+            <span className="inline-flex items-center gap-1 text-xs text-green-600">
+              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              Live
+            </span>
           </p>
         </div>
         <div className="flex gap-3">
@@ -107,26 +101,16 @@ export default function SubscribersPage() {
           <table className="w-full">
             <thead className="bg-light">
               <tr>
-                <th className="text-left px-6 py-3 text-sm font-semibold text-dark">
-                  Name
-                </th>
-                <th className="text-left px-6 py-3 text-sm font-semibold text-dark">
-                  Email
-                </th>
-                <th className="text-left px-6 py-3 text-sm font-semibold text-dark">
-                  Subscribed
-                </th>
-                <th className="text-left px-6 py-3 text-sm font-semibold text-dark">
-                  Status
-                </th>
+                <th className="text-left px-6 py-3 text-sm font-semibold text-dark">Name</th>
+                <th className="text-left px-6 py-3 text-sm font-semibold text-dark">Email</th>
+                <th className="text-left px-6 py-3 text-sm font-semibold text-dark">Subscribed</th>
+                <th className="text-left px-6 py-3 text-sm font-semibold text-dark">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-light">
               {filtered.map((sub) => (
                 <tr key={sub.id} className="hover:bg-light/50">
-                  <td className="px-6 py-4 text-sm text-dark">
-                    {sub.name || "—"}
-                  </td>
+                  <td className="px-6 py-4 text-sm text-dark">{sub.name || "—"}</td>
                   <td className="px-6 py-4 text-sm text-dark">{sub.email}</td>
                   <td className="px-6 py-4 text-sm text-dark/60">
                     {formatDate(sub.subscribed_at)}
