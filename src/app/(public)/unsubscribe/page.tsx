@@ -24,6 +24,7 @@ export default function UnsubscribePage() {
       try {
         const supabase = createClient();
 
+        // Look up the subscriber by token
         const { data: subscriber } = await supabase
           .from("subscribers")
           .select("id, email")
@@ -35,17 +36,22 @@ export default function UnsubscribePage() {
           return;
         }
 
-        await supabase
+        // DELETE the subscriber entirely
+        const { error: deleteError } = await supabase
           .from("subscribers")
-          .update({
-            is_active: false,
-            unsubscribed_at: new Date().toISOString(),
-          })
+          .delete()
           .eq("id", subscriber.id);
+
+        if (deleteError) {
+          console.error("Delete error:", deleteError);
+          setStatus("not_found");
+          return;
+        }
 
         setEmail(subscriber.email);
         setStatus("success");
-      } catch {
+      } catch (err) {
+        console.error("Unsubscribe error:", err);
         setStatus("not_found");
       }
     }
@@ -85,7 +91,7 @@ export default function UnsubscribePage() {
               <h1 className="text-2xl font-bold mb-3">Not Found</h1>
               <p className="text-dark/70 mb-6">
                 We couldn&apos;t find this subscription. It may have already been
-                unsubscribed.
+                removed.
               </p>
             </>
           )}
@@ -98,15 +104,13 @@ export default function UnsubscribePage() {
               </h1>
               <p className="text-dark/70 mb-2">{email}</p>
               <p className="text-dark/60 text-sm mb-8">
-                You will no longer receive newsletter emails from us. You can
-                re-subscribe anytime from our website.
+                Your email has been removed from our list. You can re-subscribe
+                anytime from our website.
               </p>
             </>
           )}
 
-          {(status === "success" ||
-            status === "not_found" ||
-            status === "invalid") && (
+          {(status === "success" || status === "not_found" || status === "invalid") && (
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <button
                 onClick={handleReturnHome}

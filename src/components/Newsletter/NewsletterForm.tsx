@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Send, Check, AlertCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
-function sanitizeText(input: string): string {
+function sanitize(input: string): string {
   return input.replace(/[\r\n\t]/g, "").trim().slice(0, 100);
 }
 
@@ -19,8 +19,8 @@ export function NewsletterForm() {
     setStatus("loading");
     setMessage("");
 
-    const cleanEmail = sanitizeText(email).toLowerCase();
-    const cleanName = sanitizeText(name);
+    const cleanEmail = sanitize(email).toLowerCase();
+    const cleanName = sanitize(name);
 
     if (!cleanEmail || !cleanEmail.includes("@")) {
       setStatus("error");
@@ -31,70 +31,28 @@ export function NewsletterForm() {
     try {
       const supabase = createClient();
 
-      // Check if already subscribed
-      const { data: existing } = await supabase
-        .from("subscribers")
-        .select("id, is_active")
-        .eq("email", cleanEmail)
-        .maybeSingle();
+      // Try to insert. If email already exists, unique constraint throws error.
+      const { error } = await supabase.from("subscribers").insert({
+        email: cleanEmail,
+        name: cleanName || null,
+      });
 
-      if (existing) {
-        if (existing.is_active) {
+      if (error) {
+        console.error("Subscribe error:", error);
+
+        // Duplicate email
+        if (error.code === "23505" || error.message.toLowerCase().includes("duplicate")) {
           setStatus("error");
           setMessage("This email is already subscribed.");
           return;
         }
 
-        // Re-activate
-        const { error: updateError } = await supabase
-          .from("subscribers")
-          .update({
-            is_active: true,
-            unsubscribed_at: null,
-            subscribed_at: new Date().toISOString(),
-            name: cleanName || null,
-          })
-          .eq("id", existing.id);
-
-        if (updateError) {
-          console.error("Update error:", updateError);
-          setStatus("error");
-          setMessage("Failed to re-subscribe. Please try again.");
-          return;
-        }
-
-        // Fire-and-forget welcome email
-        fetch("/api/email/welcome", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: cleanEmail, name: cleanName || null }),
-        }).catch(() => {});
-
-        setStatus("success");
-        setMessage("Welcome back! You've been re-subscribed.");
-        setEmail("");
-        setName("");
-        setTimeout(() => {
-          setStatus("idle");
-          setMessage("");
-        }, 4000);
-        return;
-      }
-
-      // New subscription
-      const { error: insertError } = await supabase.from("subscribers").insert({
-        email: cleanEmail,
-        name: cleanName || null,
-      });
-
-      if (insertError) {
-        console.error("Insert error:", insertError);
         setStatus("error");
         setMessage("Failed to subscribe. Please try again.");
         return;
       }
 
-      // Track analytics event
+      // Analytics
       if (typeof window !== "undefined" && (window as any).plausible) {
         (window as any).plausible("Newsletter Subscribed");
       }
@@ -141,6 +99,7 @@ export function NewsletterForm() {
           placeholder="Your name (optional)"
           className="w-full px-4 py-2.5 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/50 focus:border-gold focus:outline-none transition-colors text-sm"
           disabled={status === "loading"}
+          maxLength={100}
         />
       </div>
       <div className="flex gap-2">
@@ -152,6 +111,7 @@ export function NewsletterForm() {
           required
           className="flex-1 px-4 py-2.5 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/50 focus:border-gold focus:outline-none transition-colors text-sm"
           disabled={status === "loading"}
+          maxLength={100}
         />
         <button
           type="submit"
