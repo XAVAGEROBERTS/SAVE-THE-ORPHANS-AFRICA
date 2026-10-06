@@ -144,7 +144,7 @@ export default async function DonatePage({ searchParams }: Props) {
                   <li>
                     <strong>Mobile Money:</strong>
                     <br />
-                    <span className="text-dark/60">+254 700 000 000</span>
+                    <span className="text-dark/60">+256 765 673 373</span>
                   </li>
                   <li>
                     <strong>Bank Transfer:</strong>

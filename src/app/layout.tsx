@@ -113,7 +113,7 @@ const organizationSchema = {
   },
   contactPoint: {
     "@type": "ContactPoint",
-    telephone: "+256-700-000-000",
+    telephone: "+256-765-673-373",
     contactType: "Donor Support",
     email: "info@savetheorphansafrica.org",
     availableLanguage: ["English"],

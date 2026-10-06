@@ -5,8 +5,8 @@ import { MapPin, Phone, Mail, Clock, MessageCircle } from "lucide-react";
 export const metadata: Metadata = { title: "Contact Us" };
 
 const contactInfo = [
-  { icon: MapPin, title: "Visit Us", lines: ["123 Hope Street", "Nairobi, Kenya"] },
-  { icon: Phone, title: "Call Us", lines: ["+254 700 000 000"], href: "tel:+254700000000" },
+  { icon: MapPin, title: "Visit Us", lines: ["Kampala", "Uganda"] },
+  { icon: Phone, title: "Call Us", lines: ["+256 765 673 373"], href: "tel:+256765673373" },
   { icon: Mail, title: "Email Us", lines: ["info@savetheorphansafrica.org"], href: "mailto:info@savetheorphansafrica.org" },
   { icon: Clock, title: "Office Hours", lines: ["Mon - Fri: 8AM - 5PM"] },
 ];
@@ -48,7 +48,7 @@ export default function ContactPage() {
               <h2 className="section-title mb-6">Find Us</h2>
               <div className="card overflow-hidden h-[400px] min-h-[400px]">
                 <iframe
-                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d255282.35853743783!2d36.68258345!3d-1.30286035!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x182f1172d84d49a7%3A0xf7cf0254b297924c!2sNairobi%2C%20Kenya!5e0!3m2!1sen!2sus!4v1700000000000!5m2!1sen!2sus"
+                  src="https://www.google.com/maps?q=Kampala,Uganda&output=embed"
                   width="100%"
                   height="100%"
                   style={{ border: 0 }}
@@ -60,7 +60,7 @@ export default function ContactPage() {
               <div className="mt-6 flex items-center gap-3">
                 <MessageCircle className="w-5 h-5 text-primary" />
                 <p className="text-sm text-dark/70">
-                  WhatsApp: <a href="https://wa.me/254700000000" className="text-primary font-semibold" target="_blank" rel="noopener noreferrer">+254 700 000 000</a>
+                  WhatsApp: <a href="https://wa.me/256765673373" className="text-primary font-semibold" target="_blank" rel="noopener noreferrer">+256 765 673 373</a>
                 </p>
               </div>
             </div>
