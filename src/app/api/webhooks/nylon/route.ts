@@ -18,12 +18,13 @@ export async function POST(req: NextRequest) {
     }
 
     const body = JSON.parse(rawBody);
-    console.log("[webhook] received:", JSON.stringify(body));
 
     // Nylon Pay nests the transaction data under "payload"
     const tx = body.payload || body.data || body;
 
-    const event = String(body.event || body.type || tx.event || "").toLowerCase();
+    const event = String(
+      body.event || body.type || tx.event || ""
+    ).toLowerCase();
 
     // Try every plausible location for the reference
     const reference =
@@ -37,14 +38,17 @@ export async function POST(req: NextRequest) {
       body.metadata?.merchant_reference ||
       tx.metadata?.merchant_reference;
 
-    const transactionId = tx.transactionId || tx.transaction_id || body.transactionId;
+    const transactionId =
+      tx.transactionId || tx.transaction_id || body.transactionId;
 
     const rawStatus = String(tx.status || body.status || "").toLowerCase();
 
     if (!reference) {
-      console.error(
-        "[webhook] missing reference. Full body: " + JSON.stringify(body)
-      );
+      console.error("[webhook] missing reference", {
+        event: body.event,
+        txKeys: tx ? Object.keys(tx) : [],
+        bodyKeys: Object.keys(body),
+      });
       return NextResponse.json({ received: true });
     }
 
@@ -79,7 +83,6 @@ export async function POST(req: NextRequest) {
     let donation: any = null;
     let matchedBy = "";
 
-    // Try candidate references in order
     const candidates = [
       { value: reference, field: "payment_reference", tag: "ref→payment_reference" },
       { value: reference, field: "reference", tag: "ref→reference" },
@@ -125,14 +128,13 @@ export async function POST(req: NextRequest) {
     }
 
     if (!donation) {
-      console.error(
-        "[webhook] donation not found after all strategies. reference=" +
-          reference +
-          " transactionId=" +
-          transactionId +
-          " body=" +
-          JSON.stringify(body)
-      );
+      console.error("[webhook] donation not found after all strategies", {
+        reference,
+        transactionId,
+        event,
+        status: rawStatus,
+        candidatesTried: candidates.map((c) => c.tag),
+      });
       return NextResponse.json({ received: true });
     }
 
