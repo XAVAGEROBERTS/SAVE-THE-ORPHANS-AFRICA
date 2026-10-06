@@ -1,121 +1,129 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPesapalToken, submitOrder } from "@/lib/pesapal";
 import { createClient } from "@supabase/supabase-js";
+import { collectDonation } from "@/lib/nylonpay";
+
+const UGX_PER_USD = Number(process.env.UGX_PER_USD || 3700);
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const {
-      amount,
-      currency,
-      frequency,
-      program,
-      donorName,
-      donorEmail,
-      donorPhone,
-      preferredMethod,
-    } = body;
+    const { amount, frequency, program, donorName, donorEmail, donorPhone } =
+      body;
 
-    // ---------- Validation ----------
-    if (!amount || amount <= 0) {
+    if (!amount || Number(amount) <= 0) {
       return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
     }
-    if (!donorEmail || !donorEmail.includes("@")) {
+    if (!donorEmail || !String(donorEmail).includes("@")) {
       return NextResponse.json(
         { error: "Valid email required" },
         { status: 400 }
       );
     }
-
-    // ---------- Pesapal readiness check ----------
-    const ipnId = process.env.PESAPAL_IPN_ID;
-    const consumerKey = process.env.PESAPAL_CONSUMER_KEY;
-    const consumerSecret = process.env.PESAPAL_CONSUMER_SECRET;
-
-    if (
-      !ipnId ||
-      !consumerKey ||
-      !consumerSecret ||
-      consumerKey.startsWith("placeholder") ||
-      consumerSecret.startsWith("placeholder")
-    ) {
+    if (!donorPhone || String(donorPhone).replace(/\s/g, "").length < 9) {
       return NextResponse.json(
-        {
-          error:
-            "Online donations are being set up and will be available soon. Please contact us at info@savetheorphansafrica.org to donate now.",
-        },
-        { status: 503 }
+        { error: "Please enter a valid phone number for Mobile Money." },
+        { status: 400 }
       );
     }
 
-    // ---------- Generate unique merchant reference ----------
-    const merchantRef = `SOA-${Date.now()}-${Math.random()
-      .toString(36)
-      .substr(2, 9)
-      .toUpperCase()}`;
+    const amountUsd = Number(amount);
+    const amountUgx = Math.round(amountUsd * UGX_PER_USD);
 
-    // ---------- Pre-record donation as pending ----------
+    if (amountUgx < 500) {
+      return NextResponse.json(
+        { error: "Minimum donation is 500 UGX" },
+        { status: 400 }
+      );
+    }
+
+    const isMonthly = frequency === "monthly";
+
+    // Your own reference — used as the DB lookup key
+    const merchantRef = `SOA${Date.now().toString(36).slice(-8)}${Math.random()
+      .toString(36)
+      .substring(2, 6)}`.slice(0, 15).padEnd(13, "0");
+
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    const nameParts = (donorName || "Anonymous Donor").trim().split(" ");
-    const firstName = nameParts[0] || "Anonymous";
-    const lastName = nameParts.slice(1).join(" ") || "Donor";
+    const nextChargeAt = isMonthly
+      ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      : null;
 
-    // ---------- Pesapal auth ----------
-    const token = await getPesapalToken();
-
-    // ---------- Submit order ----------
-    const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-
-    const orderResponse = await submitOrder(token, {
-      id: merchantRef,
-      currency: currency || "USD",
-      amount: Number(amount),
-      description: `Donation to Save the Orphans Africa — ${
-        program || "General Fund"
-      }`,
-      callback_url: `${siteUrl}/donate/success?ref=${merchantRef}`,
-      notification_id: ipnId,
-      billing_address: {
-        email_address: donorEmail,
-        phone_number: donorPhone || "",
-        first_name: firstName,
-        last_name: lastName,
-      },
-    });
-
-    // ---------- Store pending donation ----------
-    const { error: insertError } = await supabase.from("donations").insert({
+    await supabase.from("donations").insert({
       reference: merchantRef,
-      amount: Number(amount),
-      currency: currency || "USD",
+      amount: amountUsd,
+      currency: "USD",
+      settle_currency: "UGX",
+      settle_amount: amountUgx,
       frequency: frequency || "one-time",
       program: program || "general",
       donor_name: donorName || null,
       donor_email: donorEmail,
       donor_phone: donorPhone || null,
+      preferred_method: "mobile_money",
       status: "pending",
-      payment_method: preferredMethod || "any",
-      payment_reference: orderResponse.order_tracking_id,
+      payment_method: "nylonpay",
+      is_active_subscription: isMonthly,
+      next_charge_at: nextChargeAt,
     });
 
-    if (insertError) {
-      console.error("Failed to store donation:", insertError.message);
+    const description = `Donation to Save the Orphans Africa — ${
+      program || "General Fund"
+    } ($${amountUsd.toFixed(2)})`;
+
+    const collected = await collectDonation({
+      amount: amountUgx,
+      currency: "UGX",
+      description,
+      customer: {
+        name: donorName || "Donor",
+        email: donorEmail,
+        phone: donorPhone,
+      },
+      merchantReference: merchantRef,
+      metadata: {
+        reference: merchantRef,
+        program: String(program || "general"),
+        frequency: String(frequency || "one-time"),
+        amount_usd: String(amountUsd),
+        amount_ugx: String(amountUgx),
+      },
+    });
+
+    if (!collected.success) {
+      await supabase
+        .from("donations")
+        .update({ status: "failed", raw_gateway_response: collected })
+        .eq("reference", merchantRef);
+
+      return NextResponse.json(
+        { error: collected.error || "Failed to start Mobile Money payment" },
+        { status: 500 }
+      );
     }
 
+    // Save Nylon Pay's UUID for webhook lookup
+    await supabase
+      .from("donations")
+      .update({ payment_reference: collected.reference })
+      .eq("reference", merchantRef);
+
     return NextResponse.json({
-      paymentLink: orderResponse.redirect_url,
+      mode: "prompt",
       merchantRef,
-      orderTrackingId: orderResponse.order_tracking_id,
+      paymentReference: collected.reference,
+      isSubscription: isMonthly,
+      message: isMonthly
+        ? "A payment prompt has been sent to your phone. Approve it to start your monthly gift. You'll receive a new prompt each month."
+        : "A payment prompt has been sent to your phone. Approve it to complete your donation.",
     });
   } catch (error: any) {
-    console.error("Donation endpoint error:", error);
+    console.error("Donate endpoint error:", error);
     return NextResponse.json(
-      { error: error.message || "Something went wrong" },
+      { error: error?.message || "Something went wrong" },
       { status: 500 }
     );
   }

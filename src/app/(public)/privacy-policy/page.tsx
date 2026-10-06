@@ -66,7 +66,7 @@ export default function PrivacyPolicyPage() {
       </p>
       <ul>
         <li>
-          <strong>Payment processors</strong> (Pesapal) to process donations
+          <strong>Payment processors</strong> (Nylon Pay) to process donations
         </li>
         <li>
           <strong>Email service providers</strong> (Resend) to send

@@ -26,14 +26,14 @@ export default function DonationPolicyPage() {
       </ul>
 
       <h2>2. Payment Methods</h2>
-      <p>We accept the following payment methods via Pesapal:</p>
+      <p>We accept the following payment methods via Nylon Pay:</p>
       <ul>
         <li>Mobile Money (MTN, Airtel)</li>
         <li>Credit and debit cards (Visa, Mastercard)</li>
         <li>Bank transfers</li>
       </ul>
       <p>
-        All payment information is processed securely by Pesapal. We never see
+        All payment information is processed securely by Nylon Pay. We never see
         or store your card details.
       </p>
 

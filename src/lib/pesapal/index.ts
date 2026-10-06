@@ -1,134 +1,163 @@
-const PESAPAL_BASE_URLS = {
-  sandbox: "https://cybqa.pesapal.com/pesapalv3",
-  live: "https://pay.pesapal.com/pesapalv3",
-};
+// src/lib/pesapal/index.ts
 
-function getBaseUrl() {
-  const env = process.env.PESAPAL_ENV || "sandbox";
-  return PESAPAL_BASE_URLS[env as keyof typeof PESAPAL_BASE_URLS];
-}
+const isLive = process.env.PESAPAL_ENVIRONMENT === "live";
+const BASE_URL = isLive
+  ? "https://pay.pesapal.com/v3/api"
+  : "https://cybqa.pesapal.com/pesapalv3/api";
 
-/**
- * Get an authentication token from Pesapal.
- * Tokens are valid for ~5 minutes; we fetch a fresh one each request.
- */
-export async function getPesapalToken(): Promise<string> {
-  const consumerKey = process.env.PESAPAL_CONSUMER_KEY;
-  const consumerSecret = process.env.PESAPAL_CONSUMER_SECRET;
+let cachedToken: { token: string; expiresAt: number } | null = null;
 
-  if (!consumerKey || !consumerSecret) {
-    throw new Error("Pesapal credentials not configured");
+async function getAccessToken(): Promise<string> {
+  if (cachedToken && Date.now() < cachedToken.expiresAt - 30_000) {
+    return cachedToken.token;
   }
 
-  const res = await fetch(`${getBaseUrl()}/api/Auth/RequestToken`, {
+  const key = process.env.PESAPAL_CONSUMER_KEY?.trim();
+  const secret = process.env.PESAPAL_CONSUMER_SECRET?.trim();
+
+  if (!key || !secret) {
+    throw new Error(
+      "Missing PESAPAL_CONSUMER_KEY or PESAPAL_CONSUMER_SECRET in environment"
+    );
+  }
+
+  const res = await fetch(`${BASE_URL}/Auth/RequestToken`, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
       Accept: "application/json",
+      "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      consumer_key: consumerKey,
-      consumer_secret: consumerSecret,
+      consumer_key: key,
+      consumer_secret: secret,
     }),
   });
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Pesapal auth failed: ${res.status} ${text}`);
+  const data = await res.json();
+
+  if (!res.ok || !data.token) {
+    throw new Error(
+      data.message ||
+        data.error?.message ||
+        JSON.stringify(data) ||
+        "Pesapal auth failed"
+    );
   }
 
-  const data = await res.json();
+  cachedToken = {
+    token: data.token,
+    expiresAt: Date.now() + 4.5 * 60 * 1000,
+  };
+
   return data.token;
 }
 
-/**
- * Register an IPN (Instant Payment Notification) URL.
- * Only needs to be done once — returns an ipn_id you reuse.
- */
 export async function registerIPN(
-  token: string,
-  ipnUrl: string
-): Promise<string> {
-  const res = await fetch(`${getBaseUrl()}/api/URLSetup/RegisterIPN`, {
+  url: string,
+  type: "GET" | "POST" = "POST"
+) {
+  const token = await getAccessToken();
+
+  const res = await fetch(`${BASE_URL}/URLSetup/RegisterIPN`, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
       Accept: "application/json",
+      "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({
-      url: ipnUrl,
-      ipn_notification_type: "GET",
+      url,
+      ipn_notification_type: type,
     }),
   });
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Pesapal IPN registration failed: ${res.status} ${text}`);
-  }
-
   const data = await res.json();
-  return data.ipn_id;
+  if (!res.ok) {
+    throw new Error(data.message || "Failed to register IPN");
+  }
+  return data;
 }
 
-/**
- * Submit an order request. Returns a redirect URL where the donor pays.
- */
-export async function submitOrder(
-  token: string,
-  payload: {
-    id: string;
-    currency: string;
-    amount: number;
-    description: string;
-    callback_url: string;
-    notification_id: string;
-    billing_address: {
-      email_address: string;
-      phone_number?: string;
-      first_name?: string;
-      last_name?: string;
-    };
+interface SubscriptionDetails {
+  start_date: string; // dd-MM-yyyy
+  end_date: string;   // dd-MM-yyyy
+  frequency: "DAILY" | "WEEKLY" | "MONTHLY" | "QUARTERLY" | "YEARLY";
+}
+
+export async function submitOrder(params: {
+  id: string;
+  amount: number;
+  currency: string;
+  description: string;
+  callbackUrl: string;
+  cancellationUrl?: string;
+  billingAddress: {
+    email_address?: string;
+    phone_number?: string;
+    country_code?: string;
+    first_name?: string;
+    last_name?: string;
+  };
+  // Recurring payment fields
+  accountNumber?: string;
+  subscription?: SubscriptionDetails;
+}) {
+  const token = await getAccessToken();
+  const notificationId = process.env.PESAPAL_IPN_ID;
+
+  if (!notificationId) {
+    throw new Error(
+      "PESAPAL_IPN_ID is not set. Register an IPN first and add the id to .env"
+    );
   }
-): Promise<{ redirect_url: string; order_tracking_id: string }> {
-  const res = await fetch(`${getBaseUrl()}/api/Transactions/SubmitOrderRequest`, {
+
+  const body: Record<string, any> = {
+    id: params.id,
+    currency: params.currency,
+    amount: params.amount,
+    description: params.description,
+    callback_url: params.callbackUrl,
+    cancellation_url: params.cancellationUrl,
+    notification_id: notificationId,
+    billing_address: params.billingAddress,
+  };
+
+  // Add recurring payment fields if provided
+  if (params.accountNumber) {
+    body.account_number = params.accountNumber;
+  }
+
+  if (params.subscription) {
+    body.subscription_details = params.subscription;
+  }
+
+  const res = await fetch(`${BASE_URL}/Transactions/SubmitOrderRequest`, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
       Accept: "application/json",
+      "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
   });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Pesapal order failed: ${res.status} ${text}`);
-  }
 
   const data = await res.json();
 
-  if (data.error) {
-    throw new Error(`Pesapal error: ${JSON.stringify(data.error)}`);
+  if (!res.ok || String(data.status) !== "200") {
+    throw new Error(
+      data.message || data.error?.message || "Failed to create Pesapal order"
+    );
   }
 
-  return {
-    redirect_url: data.redirect_url,
-    order_tracking_id: data.order_tracking_id,
-  };
+  return data;
 }
 
-/**
- * Query the status of a transaction.
- */
-export async function getTransactionStatus(
-  token: string,
-  orderTrackingId: string
-): Promise<any> {
+export async function getTransactionStatus(orderTrackingId: string) {
+  const token = await getAccessToken();
+
   const res = await fetch(
-    `${getBaseUrl()}/api/Transactions/GetTransactionStatus?orderTrackingId=${orderTrackingId}`,
+    `${BASE_URL}/Transactions/GetTransactionStatus?orderTrackingId=${orderTrackingId}`,
     {
-      method: "GET",
       headers: {
         Accept: "application/json",
         Authorization: `Bearer ${token}`,
@@ -136,10 +165,9 @@ export async function getTransactionStatus(
     }
   );
 
+  const data = await res.json();
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Pesapal status check failed: ${res.status} ${text}`);
+    throw new Error(data.message || "Failed to get transaction status");
   }
-
-  return res.json();
+  return data;
 }

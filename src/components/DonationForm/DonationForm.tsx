@@ -7,7 +7,7 @@ import {
   AlertCircle,
   Smartphone,
   CreditCard,
-  Building2,
+  CheckCircle2,
 } from "lucide-react";
 import { formatCurrency } from "@/utils/format";
 import { cn } from "@/utils/cn";
@@ -25,7 +25,7 @@ const donationDestinations = [
   { id: "skills-development", title: "Skills Development — Vocational training" },
 ];
 
-type PaymentMethod = "any" | "mobile_money" | "card";
+type PaymentMethod = "mobile_money" | "card";
 
 interface Props {
   defaultAmount?: number;
@@ -50,12 +50,14 @@ export function DonationForm({
     defaultFrequency || "one-time"
   );
   const [program, setProgram] = useState(defaultProgram || "general");
-  const [preferredMethod, setPreferredMethod] = useState<PaymentMethod>("any");
+  const [preferredMethod, setPreferredMethod] =
+    useState<PaymentMethod>("mobile_money");
   const [donorName, setDonorName] = useState("");
   const [donorEmail, setDonorEmail] = useState("");
   const [donorPhone, setDonorPhone] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [promptSuccess, setPromptSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     if (defaultAmount && defaultAmount > 0) {
@@ -68,12 +70,12 @@ export function DonationForm({
     }
   }, [defaultAmount]);
 
-  // If user picks mobile money, phone becomes required
   const phoneRequired = preferredMethod === "mobile_money";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setPromptSuccess(null);
 
     if (!amount || amount < 1) {
       setError("Please enter a valid amount.");
@@ -83,8 +85,13 @@ export function DonationForm({
       setError("Please enter a valid email.");
       return;
     }
-    if (phoneRequired && (!donorPhone || donorPhone.length < 7)) {
-      setError("Please enter a valid phone number for Mobile Money.");
+    if (
+      phoneRequired &&
+      (!donorPhone || donorPhone.replace(/\s/g, "").length < 9)
+    ) {
+      setError(
+        "Please enter a valid phone number (e.g. +256700000000) for Mobile Money."
+      );
       return;
     }
 
@@ -96,23 +103,52 @@ export function DonationForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           amount,
-          currency: "USD",
           frequency,
           program,
-          donorName,
+          donorName: donorName || "Anonymous",
           donorEmail,
-          donorPhone,
+          donorPhone: donorPhone || undefined,
           preferredMethod,
         }),
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Payment initialization failed");
+      let data: any;
+      const text = await res.text();
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = {
+          error: text.slice(0, 300) || `Server error (${res.status})`,
+        };
       }
 
-      window.location.href = data.paymentLink;
+      if (!res.ok) {
+        const errMsg =
+          typeof data.error === "string"
+            ? data.error
+            : data.error?.message ||
+              JSON.stringify(data.error) ||
+              `Payment failed (${res.status})`;
+        throw new Error(errMsg);
+      }
+
+      // Mobile Money → prompt sent to phone
+      if (data.mode === "prompt") {
+        setPromptSuccess(
+          data.message ||
+            "A payment prompt has been sent to your phone. Approve it to complete your donation."
+        );
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Card → redirect to Nylon Pay hosted page
+      if (data.mode === "link" && data.paymentLink) {
+        window.location.href = data.paymentLink;
+        return;
+      }
+
+      throw new Error("Unexpected response from payment server");
     } catch (err: any) {
       console.error("Donation error:", err);
       setError(err.message || "Something went wrong. Please try again.");
@@ -120,12 +156,38 @@ export function DonationForm({
     }
   };
 
+  if (promptSuccess) {
+    return (
+      <div className="card p-6 md:p-8 text-center">
+        <div className="flex justify-center mb-4">
+          <CheckCircle2 className="w-14 h-14 text-green-600" />
+        </div>
+        <h3 className="text-xl font-bold text-dark mb-2">Check your phone</h3>
+        <p className="text-dark/80 mb-4">{promptSuccess}</p>
+        <p className="text-sm text-dark/50 mb-6">
+          After you approve with your Mobile Money PIN, your donation will be
+          confirmed. You can close this page.
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            setPromptSuccess(null);
+            setIsSubmitting(false);
+          }}
+          className="btn-primary"
+        >
+          Make another donation
+        </button>
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={handleSubmit} className="card p-6 md:p-8">
       {error && (
         <div className="flex items-start gap-3 bg-red-50 border border-red-200 text-red-800 p-4 rounded-lg mb-6">
           <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-          <p className="text-sm">{error}</p>
+          <p className="text-sm break-words">{error}</p>
         </div>
       )}
 
@@ -133,8 +195,7 @@ export function DonationForm({
         <div className="mb-6 p-4 bg-gold/10 border border-gold/30 rounded-lg">
           <p className="text-sm text-dark/80">
             <strong>Sponsorship mode:</strong> Your amount and frequency are
-            pre-set based on the sponsor option you chose. You can still adjust
-            them below.
+            pre-set. You can still adjust them below.
           </p>
         </div>
       )}
@@ -168,12 +229,18 @@ export function DonationForm({
             Monthly
           </button>
         </div>
+        {frequency === "monthly" && (
+          <p className="text-xs text-dark/50 mt-2">
+            Monthly giving via Mobile Money: you will receive a prompt each
+            month to renew your gift.
+          </p>
+        )}
       </div>
 
       {/* Amount */}
       <div className="mb-6">
         <label className="form-label">How much would you like to give?</label>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
           {presetAmounts.map((preset) => {
             const isSelected = amount === preset && customAmount === "";
             return (
@@ -196,22 +263,30 @@ export function DonationForm({
             );
           })}
         </div>
+        <label htmlFor="custom-amount" className="form-label">
+          Enter custom amount
+        </label>
         <div className="relative">
-          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-dark/50 font-semibold">
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-dark/60 font-semibold">
             $
           </span>
           <input
+            id="custom-amount"
             type="number"
             min="1"
+            step="1"
             value={customAmount}
             onChange={(e) => {
               setCustomAmount(e.target.value);
               setAmount(Number(e.target.value) || 0);
             }}
-            placeholder="Custom amount"
-            className="form-input pl-8"
+            placeholder="0"
+            className="form-input pl-8 border-2 border-dark/25 focus:border-primary rounded-lg"
           />
         </div>
+        <p className="text-xs text-dark/50 mt-2">
+          Shown in USD. Charged in Ugandan Shillings (UGX) at our current rate.
+        </p>
       </div>
 
       {/* Program */}
@@ -231,68 +306,84 @@ export function DonationForm({
             </option>
           ))}
         </select>
-        <p className="text-xs text-dark/50 mt-2">
-          Choose where you'd like your donation to go. Not sure? Leave it on{" "}
-          <strong>General Fund</strong> and we'll direct it where it's needed
-          most.
-        </p>
       </div>
 
-      {/* Payment Method Preference */}
+      {/* Payment Method Selector */}
       <div className="mb-6">
         <label className="form-label">How would you like to pay?</label>
-        <div className="grid grid-cols-3 gap-2">
-          <button
-            type="button"
-            onClick={() => setPreferredMethod("any")}
-            className={cn(
-              "py-3 rounded-lg text-xs font-semibold transition-all border-2 flex flex-col items-center gap-1.5",
-              preferredMethod === "any"
-                ? "border-primary bg-primary/5 text-primary"
-                : "border-light bg-white text-dark/60 hover:border-primary/30"
-            )}
-          >
-            <Shield className="w-5 h-5" />
-            Any Method
-          </button>
+        <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
             onClick={() => setPreferredMethod("mobile_money")}
             className={cn(
-              "py-3 rounded-lg text-xs font-semibold transition-all border-2 flex flex-col items-center gap-1.5",
+              "p-4 rounded-xl text-left transition-all border-2",
               preferredMethod === "mobile_money"
-                ? "border-primary bg-primary/5 text-primary"
-                : "border-light bg-white text-dark/60 hover:border-primary/30"
+                ? "border-primary bg-primary/5"
+                : "border-light bg-white hover:border-primary/30"
             )}
           >
-            <Smartphone className="w-5 h-5" />
-            Mobile Money
+            <Smartphone
+              className={cn(
+                "w-6 h-6 mb-2",
+                preferredMethod === "mobile_money"
+                  ? "text-primary"
+                  : "text-dark/50"
+              )}
+            />
+            <p
+              className={cn(
+                "text-sm font-bold",
+                preferredMethod === "mobile_money"
+                  ? "text-primary"
+                  : "text-dark"
+              )}
+            >
+              Mobile Money
+            </p>
+            <p className="text-xs text-dark/50 mt-1">
+              MTN or Airtel — approve on your phone
+            </p>
           </button>
+
           <button
             type="button"
             onClick={() => setPreferredMethod("card")}
             className={cn(
-              "py-3 rounded-lg text-xs font-semibold transition-all border-2 flex flex-col items-center gap-1.5",
+              "p-4 rounded-xl text-left transition-all border-2",
               preferredMethod === "card"
-                ? "border-primary bg-primary/5 text-primary"
-                : "border-light bg-white text-dark/60 hover:border-primary/30"
+                ? "border-primary bg-primary/5"
+                : "border-light bg-white hover:border-primary/30"
             )}
           >
-            <CreditCard className="w-5 h-5" />
-            Card
+            <CreditCard
+              className={cn(
+                "w-6 h-6 mb-2",
+                preferredMethod === "card" ? "text-primary" : "text-dark/50"
+              )}
+            />
+            <p
+              className={cn(
+                "text-sm font-bold",
+                preferredMethod === "card" ? "text-primary" : "text-dark"
+              )}
+            >
+              Credit / Debit Card
+            </p>
+            <p className="text-xs text-dark/50 mt-1">
+              Visa &amp; Mastercard on a secure page
+            </p>
           </button>
         </div>
-        <p className="text-xs text-dark/50 mt-2">
+
+        <p className="text-xs text-dark/50 mt-3">
           {preferredMethod === "mobile_money" &&
-            "You'll receive a payment prompt on your phone to approve."}
+            "You'll get a prompt on your phone. Enter your Mobile Money PIN to pay."}
           {preferredMethod === "card" &&
-            "You'll enter your card details on the next page."}
-          {preferredMethod === "any" &&
-            "You'll choose your method on the secure payment page."}
+            "You'll be taken to Nylon Pay's secure page to enter your card details. Card details never touch our servers."}
         </p>
       </div>
 
-      {/* Donor Info */}
+      {/* Donor Details */}
       <div className="space-y-4 mb-6">
         <div>
           <label htmlFor="donor-name" className="form-label">
@@ -321,29 +412,28 @@ export function DonationForm({
             placeholder="you@example.com"
           />
         </div>
-        <div>
-          <label htmlFor="donor-phone" className="form-label">
-            Phone Number {phoneRequired && "*"}
-          </label>
-          <input
-            id="donor-phone"
-            type="tel"
-            required={phoneRequired}
-            value={donorPhone}
-            onChange={(e) => setDonorPhone(e.target.value)}
-            className="form-input"
-            placeholder="+256 700 000 000"
-          />
-          {phoneRequired && (
+        {preferredMethod === "mobile_money" && (
+          <div>
+            <label htmlFor="donor-phone" className="form-label">
+              Phone Number *
+            </label>
+            <input
+              id="donor-phone"
+              type="tel"
+              required
+              value={donorPhone}
+              onChange={(e) => setDonorPhone(e.target.value)}
+              className="form-input"
+              placeholder="+256 700 000 000"
+            />
             <p className="text-xs text-dark/50 mt-1">
-              Required for Mobile Money. You'll receive a payment prompt on this
-              number.
+              Required for Mobile Money. Use +256…
             </p>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
-      {/* Impact statement */}
+      {/* Impact Preview */}
       <div className="bg-cream rounded-lg p-4 mb-6">
         <p className="text-sm text-dark/80">
           <span className="font-bold text-primary">
@@ -353,10 +443,10 @@ export function DonationForm({
           {amount >= 250
             ? "school supplies for 5 children"
             : amount >= 100
-            ? "healthcare and essential needs for a child"
-            : amount >= 50
-            ? "school supplies for a child"
-            : "nutritious meals for a child"}
+              ? "healthcare and essential needs for a child"
+              : amount >= 50
+                ? "school supplies for a child"
+                : "nutritious meals for a child"}
           .
         </p>
       </div>
@@ -370,7 +460,9 @@ export function DonationForm({
         {isSubmitting ? (
           <>
             <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            Redirecting to payment...
+            {preferredMethod === "mobile_money"
+              ? "Sending prompt…"
+              : "Redirecting to secure payment…"}
           </>
         ) : (
           <>
@@ -383,10 +475,10 @@ export function DonationForm({
 
       <div className="flex items-center justify-center gap-2 mt-4 text-xs text-dark/50">
         <Shield className="w-3.5 h-3.5" />
-        Secure payment processing by Pesapal
+        Secure payment by Nylon Pay · Card details never stored on our site
       </div>
 
-      {/* Payment methods preview */}
+      {/* Accepted Methods */}
       <div className="mt-6 pt-6 border-t border-light">
         <p className="text-sm font-semibold text-dark mb-4 text-center">
           Accepted payment methods
@@ -417,15 +509,11 @@ export function DonationForm({
               <CreditCard className="w-5 h-5 text-white" />
             </div>
             <span className="text-[11px] font-semibold text-dark text-center leading-tight">
-              Credit /
+              Visa /
               <br />
-              Debit Card
+              Mastercard
             </span>
           </div>
-        </div>
-        <div className="flex items-center justify-center gap-2 mt-4 text-xs text-dark/50">
-          <Building2 className="w-3.5 h-3.5" />
-          Bank transfer also available on the payment page
         </div>
       </div>
     </form>

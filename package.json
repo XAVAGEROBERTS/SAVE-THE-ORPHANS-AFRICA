@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
+    "@nile-squad/nylonpay-ts": "^2.0.1",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.45.4",
     "@upstash/ratelimit": "^2.2.0",
