@@ -139,12 +139,12 @@ export function VolunteerForm() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <div>
           <label htmlFor="fullName" className="form-label">Full Name *</label>
-          <input id="fullName" type="text" {...register("fullName")} className="form-input" placeholder="Jane Doe" />
+          <input id="fullName" type="text" {...register("fullName")} className="form-input" placeholder="Your name" />
           {errors.fullName && <p className="form-error">{errors.fullName.message}</p>}
         </div>
         <div>
           <label htmlFor="email" className="form-label">Email Address *</label>
-          <input id="email" type="email" {...register("email")} className="form-input" placeholder="jane@example.com" />
+          <input id="email" type="email" {...register("email")} className="form-input" placeholder="you@example.com" />
           {errors.email && <p className="form-error">{errors.email.message}</p>}
         </div>
         <div>

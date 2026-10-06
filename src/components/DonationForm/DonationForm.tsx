@@ -261,7 +261,7 @@ export function DonationForm({
             value={donorName}
             onChange={(e) => setDonorName(e.target.value)}
             className="form-input"
-            placeholder="John Doe"
+            placeholder="Your name"
           />
         </div>
         <div>
