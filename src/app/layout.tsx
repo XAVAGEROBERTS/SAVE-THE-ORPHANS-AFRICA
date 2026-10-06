@@ -130,6 +130,10 @@ const organizationSchema = {
     "https://linkedin.com/company/savetheorphansafrica",
     "https://youtube.com/@savetheorphansafrica",
   ],
+  potentialAction: {
+    "@type": "DonateAction",
+    target: `${SITE_URL}/donate`,
+  },
 };
 
 const websiteSchema = {

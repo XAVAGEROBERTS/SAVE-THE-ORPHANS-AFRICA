@@ -63,81 +63,49 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
-// Structured data for the homepage — Organization + FAQ.
-// FAQ schema can win you the "People also ask" box in Google.
+// Structured data for the homepage — FAQ only.
+// The NGO/Organization schema is declared ONCE in the root layout and
+// referenced here by @id. Do not redeclare it on any page.
 const homeSchema = {
   "@context": "https://schema.org",
-  "@graph": [
+  "@type": "FAQPage",
+  "@id": `${SITE_URL}/#faq`,
+  mainEntity: [
     {
-      "@type": "NGO",
-      "@id": `${SITE_URL}/#organization`,
-      name: SITE_NAME,
-      url: SITE_URL,
-      logo: `${SITE_URL}/logo.svg`,
-      description: HOME_DESCRIPTION,
-      address: { "@type": "PostalAddress", addressCountry: "UG" },
-      donationUrl: `${SITE_URL}/donate`,
-      founder: [
-        // Fill in real founders once you have their names + URLs
-        // {
-        //   "@type": "Person",
-        //   "name": "Robert ...",
-        //   "url": `${SITE_URL}/team/robert`,
-        // },
-      ],
-      // sameAs: [
-      //   "https://facebook.com/yourpage",
-      //   "https://twitter.com/yourhandle",
-      //   "https://instagram.com/yourhandle",
-      // ],
+      "@type": "Question",
+      name: "What does Save the Orphans Africa do?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "We provide vulnerable children in Africa with a safe home, education, healthcare, nutrition, and long-term support so they can grow into independent adults.",
+      },
     },
     {
-      "@type": "WebSite",
-      "@id": `${SITE_URL}/#website`,
-      url: SITE_URL,
-      name: SITE_NAME,
-      publisher: { "@id": `${SITE_URL}/#organization` },
+      "@type": "Question",
+      name: "How much of my donation goes to programs?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "85% of every donation goes directly to programs for the children. The remaining 15% covers essential operational costs.",
+      },
     },
     {
-      "@type": "FAQPage",
-      "@id": `${SITE_URL}/#faq`,
-      mainEntity: [
-        {
-          "@type": "Question",
-          name: "What does Save the Orphans Africa do?",
-          acceptedAnswer: {
-            "@type": "Answer",
-            text: "We provide vulnerable children in Africa with a safe home, education, healthcare, nutrition, and long-term support so they can grow into independent adults.",
-          },
-        },
-        {
-          "@type": "Question",
-          name: "How much of my donation goes to programs?",
-          acceptedAnswer: {
-            "@type": "Answer",
-            text: "85% of every donation goes directly to programs for the children. The remaining 15% covers essential operational costs.",
-          },
-        },
-        {
-          "@type": "Question",
-          name: "Can I sponsor a specific child?",
-          acceptedAnswer: {
-            "@type": "Answer",
-            text: "Yes. Through our sponsorship program you can support a specific cause on a monthly basis. Visit our donate page and choose the sponsor option.",
-          },
-        },
-        {
-          "@type": "Question",
-          name: "Is my donation tax-deductible?",
-          acceptedAnswer: {
-            "@type": "Answer",
-            text: "Tax deductibility depends on your country. Contact us with your details and we will provide the appropriate documentation.",
-          },
-        },
-      ],
+      "@type": "Question",
+      name: "Can I sponsor a specific child?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Yes. Through our sponsorship program you can support a specific cause on a monthly basis. Visit our donate page and choose the sponsor option.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "Is my donation tax-deductible?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Tax deductibility depends on your country. Contact us with your details and we will provide the appropriate documentation.",
+      },
     },
   ],
 };
+
 
 export default async function HomePage() {
   const programs = await getPrograms();
