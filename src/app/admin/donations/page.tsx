@@ -163,7 +163,6 @@ export default function DonationsPage() {
     setFiltered(result);
   }, [search, statusFilter, donations]);
 
-  // Clear selection when filter changes
   useEffect(() => {
     setSelectedIds(new Set());
   }, [statusFilter, search]);
@@ -192,10 +191,8 @@ export default function DonationsPage() {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (allVisibleSelected) {
-        // Unselect all visible
         filtered.forEach((d) => next.delete(d.id));
       } else {
-        // Select all visible
         filtered.forEach((d) => next.add(d.id));
       }
       return next;
@@ -207,19 +204,40 @@ export default function DonationsPage() {
   }
 
   async function updateStatus(id: string, status: string) {
+    if (status !== "refunded") {
+      alert(
+        "Only 'refunded' can be set manually. Payment statuses come from the gateway."
+      );
+      return;
+    }
     setIsSaving(true);
-    await fetch(`/api/admin/donations/${id}`, {
+    const res = await fetch(`/api/admin/donations/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
     });
     setIsSaving(false);
+
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      alert(json.error || "Failed to update status");
+      return;
+    }
+
     setEditing(null);
+    load();
   }
 
   async function remove(id: string) {
-    if (!confirm("Delete this donation?")) return;
-    await fetch(`/api/admin/donations/${id}`, { method: "DELETE" });
+    if (!confirm("Delete this donation? This cannot be undone.")) return;
+    const res = await fetch(`/api/admin/donations/${id}`, {
+      method: "DELETE",
+    });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      alert(json.error || "Failed to delete");
+      return;
+    }
     setDonations(donations.filter((d) => d.id !== id));
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -227,10 +245,6 @@ export default function DonationsPage() {
       return next;
     });
   }
-
-  // ═══════════════════════════════════════════════════════════
-  // Bulk operations
-  // ═══════════════════════════════════════════════════════════
 
   async function bulkDelete() {
     const count = selectedIds.size;
@@ -275,12 +289,12 @@ export default function DonationsPage() {
     }
   }
 
-  async function bulkUpdateStatus(status: string) {
+  async function bulkMarkRefunded() {
     const count = selectedIds.size;
     if (count === 0) return;
 
     const verb = count === 1 ? "donation" : "donations";
-    if (!confirm(`Mark ${count} ${verb} as "${status}"?`)) return;
+    if (!confirm(`Mark ${count} ${verb} as refunded?`)) return;
 
     setIsBulkWorking(true);
     const ids = Array.from(selectedIds);
@@ -290,7 +304,7 @@ export default function DonationsPage() {
           fetch(`/api/admin/donations/${id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ status }),
+            body: JSON.stringify({ status: "refunded" }),
           }).then((r) => {
             if (!r.ok) throw new Error(`Failed: ${id}`);
             return id;
@@ -434,7 +448,6 @@ export default function DonationsPage() {
         </div>
       </div>
 
-      {/* Bulk actions bar */}
       {selectionCount > 0 && (
         <div className="mb-4 flex items-center justify-between gap-4 flex-wrap p-3 rounded-lg bg-primary/5 border-2 border-primary/20">
           <div className="flex items-center gap-3">
@@ -451,21 +464,7 @@ export default function DonationsPage() {
           </div>
           <div className="flex gap-2 flex-wrap">
             <button
-              onClick={() => bulkUpdateStatus("completed")}
-              disabled={isBulkWorking}
-              className="px-3 py-1.5 rounded-lg text-sm font-medium bg-green-100 text-green-800 hover:bg-green-200 disabled:opacity-50"
-            >
-              Mark completed
-            </button>
-            <button
-              onClick={() => bulkUpdateStatus("failed")}
-              disabled={isBulkWorking}
-              className="px-3 py-1.5 rounded-lg text-sm font-medium bg-red-100 text-red-800 hover:bg-red-200 disabled:opacity-50"
-            >
-              Mark failed
-            </button>
-            <button
-              onClick={() => bulkUpdateStatus("refunded")}
+              onClick={bulkMarkRefunded}
               disabled={isBulkWorking}
               className="px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 text-gray-800 hover:bg-gray-200 disabled:opacity-50"
             >
@@ -616,12 +615,14 @@ export default function DonationsPage() {
                         <button
                           onClick={() => setEditing(d)}
                           className="p-2 rounded hover:bg-primary/10 text-primary"
+                          title="Actions"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => remove(d.id)}
                           className="p-2 rounded hover:bg-red-50 text-red-600"
+                          title="Delete"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -639,7 +640,7 @@ export default function DonationsPage() {
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold">Update Donation Status</h2>
+              <h2 className="text-xl font-bold">Donation Actions</h2>
               <button
                 onClick={() => setEditing(null)}
                 className="p-2 hover:bg-light rounded"
@@ -647,29 +648,56 @@ export default function DonationsPage() {
                 <X className="w-5 h-5" />
               </button>
             </div>
+
             <p className="text-sm text-dark/60 mb-1">
               Reference: <span className="font-mono">{editing.reference}</span>
             </p>
             {editing.parent_reference && (
               <p className="text-sm text-dark/60 mb-4">
-                Parent: <span className="font-mono">{editing.parent_reference}</span>
+                Parent:{" "}
+                <span className="font-mono">{editing.parent_reference}</span>
               </p>
             )}
-            <div className="space-y-2 mt-4">
-              {["pending", "completed", "failed", "refunded"].map((s) => (
-                <button
-                  key={s}
-                  disabled={isSaving}
-                  onClick={() => updateStatus(editing.id, s)}
-                  className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-colors ${
-                    editing.status === s
-                      ? "border-primary bg-primary/5"
-                      : "border-light hover:border-primary/40"
+
+            <div className="mt-4 p-3 rounded-lg bg-light text-sm text-dark/70">
+              <p className="font-semibold mb-2">Current status</p>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`text-xs px-2 py-1 rounded-full ${
+                    statusColors[editing.status] || ""
                   }`}
                 >
-                  <span className="font-medium capitalize">{s}</span>
-                </button>
-              ))}
+                  {editing.status}
+                </span>
+                {editing.gateway_status && (
+                  <span className="text-xs text-dark/50">
+                    ({editing.gateway_status})
+                  </span>
+                )}
+              </div>
+              <p className="mt-3 text-xs text-dark/50">
+                Payment statuses come from the gateway. They cannot be edited
+                manually.
+              </p>
+            </div>
+
+            <div className="mt-4 space-y-2">
+              <button
+                disabled={isSaving || editing.status === "refunded"}
+                onClick={() => updateStatus(editing.id, "refunded")}
+                className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-colors ${
+                  editing.status === "refunded"
+                    ? "border-primary bg-primary/5 opacity-60 cursor-not-allowed"
+                    : "border-light hover:border-primary/40"
+                }`}
+              >
+                <span className="font-medium">Mark as refunded</span>
+                <p className="text-xs text-dark/50 mt-0.5">
+                  {editing.status === "refunded"
+                    ? "Already refunded"
+                    : "Use only after you've issued an actual refund via Nylon Pay"}
+                </p>
+              </button>
             </div>
           </div>
         </div>
