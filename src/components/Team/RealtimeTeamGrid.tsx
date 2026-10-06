@@ -72,7 +72,7 @@ export function RealtimeTeamGrid({
               <p className="text-sm text-primary font-semibold mb-3">
                 {member.role}
               </p>
-              <p className="text-sm text-dark/70 leading-relaxed line-clamp-3">
+              <p className="text-sm text-dark/70 leading-relaxed">
                 {member.bio}
               </p>
 
