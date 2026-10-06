@@ -84,14 +84,6 @@ export const metadata: Metadata = {
     description: DEFAULT_DESCRIPTION,
     images: ["/og-image.png"],
   },
-  icons: {
-    icon: [
-      { url: "/logo.svg", type: "image/svg+xml" },
-      { url: "/favicon.ico", sizes: "any" },
-    ],
-    shortcut: "/logo.svg",
-    apple: [{ url: "/logo.svg" }],
-  },
   manifest: "/manifest.webmanifest",
 };
 
