@@ -142,7 +142,7 @@ export default function PrivacyPolicyPage() {
           </a>
         </li>
         <li>
-          <strong>Address:</strong> 123 Hope Street, Kampala, Uganda
+          <strong>Address:</strong> Kampala, Uganda
         </li>
       </ul>
     </LegalPageLayout>

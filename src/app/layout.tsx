@@ -107,7 +107,6 @@ const organizationSchema = {
   foundingDate: "2015",
   address: {
     "@type": "PostalAddress",
-    streetAddress: "123 Hope Street",
     addressLocality: "Kampala",
     addressCountry: "UG",
   },

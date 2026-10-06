@@ -91,7 +91,7 @@ export function wrapEmail({
                 ${footerNote || "Thank you for supporting vulnerable children."}
               </p>
               <p style="color:#9CA3AF;font-size:12px;margin:0 0 8px;">
-                Save the Orphans Africa · 123 Hope Street, Kampala, Uganda
+                Save the Orphans Africa · Kampala, Uganda
               </p>
               <p style="color:#9CA3AF;font-size:12px;margin:0;">
                 <a href="${SITE_URL}" style="color:#176B45;text-decoration:underline;">Visit our website</a>

@@ -210,7 +210,7 @@ export function Footer() {
               <li className="flex items-start gap-3">
                 <MapPin className="w-4 h-4 text-gold mt-0.5 shrink-0" />
                 <span className="text-white/70 text-sm">
-                  123 Hope Street, Kampala, Uganda
+                  Kampala, Uganda
                 </span>
               </li>
               <li className="flex items-center gap-3">
