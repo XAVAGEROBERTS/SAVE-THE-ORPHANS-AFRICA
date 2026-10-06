@@ -1,6 +1,14 @@
+// src/app/api/webhooks/nylon/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { verifyWebhookSignature, verifyPayment } from "@/lib/nylonpay";
+
+// Basic email sanity check — not exhaustive, just prevents junk hitting Resend
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function isValidEmail(email: unknown): email is string {
+  return typeof email === "string" && EMAIL_RE.test(email.trim());
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,15 +26,10 @@ export async function POST(req: NextRequest) {
     }
 
     const body = JSON.parse(rawBody);
-
-    // Nylon Pay nests the transaction data under "payload"
     const tx = body.payload || body.data || body;
 
-    const event = String(
-      body.event || body.type || tx.event || ""
-    ).toLowerCase();
+    const event = String(body.event || body.type || tx.event || "").toLowerCase();
 
-    // Try every plausible location for the reference
     const reference =
       tx.reference ||
       tx.merchantReference ||
@@ -107,7 +110,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Last resort — ask Nylon Pay for the transaction metadata
     if (!donation && transactionId) {
       try {
         const txInfo = await verifyPayment(transactionId);
@@ -142,6 +144,7 @@ export async function POST(req: NextRequest) {
       `[webhook] matched ${donation.reference} via ${matchedBy} → ${finalStatus}`
     );
 
+    // ── Update donation ──
     await supabase
       .from("donations")
       .update({
@@ -179,39 +182,80 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── Receipt on success ──
-    if (finalStatus === "completed" && donation.donor_email) {
-      try {
-        const { sendEmail } = await import("@/lib/email/resend");
-        const { donationReceiptEmail } = await import("@/lib/email/templates");
+    // ── Receipt on success (idempotent) ──
+    if (finalStatus === "completed") {
+      // 1. Only send once — check receipt_sent_at
+      if (donation.receipt_sent_at) {
+        console.log(
+          `[webhook] receipt already sent for ${donation.reference} at ${donation.receipt_sent_at} — skipping`
+        );
+      } else if (!isValidEmail(donation.donor_email)) {
+        console.warn(
+          `[webhook] invalid or missing donor_email for ${donation.reference}:`,
+          donation.donor_email
+        );
+      } else {
+        try {
+          const { sendEmail, notifyAdmin } = await import("@/lib/email/resend");
+          const { donationReceiptEmail } = await import("@/lib/email/templates");
 
-        const html = donationReceiptEmail({
-          donorName: donation.donor_name || "",
-          amount: Number(donation.amount),
-          currency: donation.currency,
-          reference: donation.reference,
-          program: donation.program,
-          frequency: donation.frequency,
-          date: new Date().toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          }),
-        });
+          const html = donationReceiptEmail({
+            donorName: donation.donor_name || "",
+            amount: Number(donation.amount),
+            currency: donation.currency,
+            reference: donation.reference,
+            program: donation.program,
+            frequency: donation.frequency,
+            date: new Date().toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            }),
+          });
 
-        await sendEmail({
-          to: donation.donor_email,
-          subject: `Donation Receipt — ${donation.reference}`,
-          html,
-        });
-      } catch (emailErr) {
-        console.error("[webhook] receipt failed:", emailErr);
+          // Send to donor
+          await sendEmail({
+            to: donation.donor_email.trim(),
+            subject: `Donation Receipt — ${donation.reference}`,
+            html,
+          });
+
+          // Notify admin (fire-and-forget — failure shouldn't block)
+          notifyAdmin("donation", {
+            reference: donation.reference,
+            amount: `${donation.currency} ${Number(donation.amount).toLocaleString()}`,
+            donor_name: donation.donor_name,
+            donor_email: donation.donor_email,
+            program: donation.program,
+            frequency: donation.frequency,
+            payment_method: "nylonpay",
+          }).catch((e) =>
+            console.error("[webhook] admin notify failed:", e?.message)
+          );
+
+          // Mark receipt sent — AFTER successful send
+          await supabase
+            .from("donations")
+            .update({ receipt_sent_at: new Date().toISOString() })
+            .eq("id", donation.id);
+
+          console.log(
+            `[webhook] receipt sent to ${donation.donor_email} for ${donation.reference}`
+          );
+        } catch (emailErr: any) {
+          // Don't mark receipt_sent_at on failure — next retry will try again
+          console.error(
+            "[webhook] receipt failed:",
+            emailErr?.message || emailErr
+          );
+        }
       }
     }
 
     return NextResponse.json({ received: true });
   } catch (error: any) {
     console.error("[webhook] handler error:", error?.message, error?.stack);
+    // Still return 200 — Nylon would retry on 5xx, which won't help here
     return NextResponse.json({ received: true });
   }
 }
