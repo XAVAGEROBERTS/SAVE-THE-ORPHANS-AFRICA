@@ -1,152 +1,157 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { verifyWebhookSignature } from "@/lib/nylonpay";
+import { verifyWebhookSignature, verifyPayment } from "@/lib/nylonpay";
 
 export async function POST(req: NextRequest) {
   try {
     const rawBody = await req.text();
 
-    // Official header only
-    const signature = req.headers.get("x-nylon-signature") || "";
+    const signature =
+      req.headers.get("x-nylon-signature") ||
+      req.headers.get("x-nylonpay-signature") ||
+      req.headers.get("x-signature") ||
+      "";
 
     if (!verifyWebhookSignature(rawBody, signature)) {
-      console.error("[webhook] signature verification FAILED → 401");
+      console.error("[webhook] invalid signature");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = JSON.parse(rawBody);
+    console.log("[webhook] received:", JSON.stringify(body));
 
-    // Nylon shape: { delivery_id, event, payload: { reference, status, ... }, timestamp }
-    const event = String(body.event || "").toLowerCase();
-    const inner = body.payload || body.data || {};
-    const rawStatus = String(inner.status || body.status || "").toLowerCase();
+    // Nylon Pay nests the transaction data under "payload"
+    const tx = body.payload || body.data || body;
 
+    const event = String(body.event || body.type || tx.event || "").toLowerCase();
+
+    // Try every plausible location for the reference
     const reference =
-      inner.reference ||
+      tx.reference ||
+      tx.merchantReference ||
       body.reference ||
-      inner.merchantReference ||
       body.merchantReference ||
       body.metadata?.reference ||
-      null;
+      tx.metadata?.reference ||
+      tx.merchant_reference ||
+      body.metadata?.merchant_reference ||
+      tx.metadata?.merchant_reference;
+
+    const transactionId = tx.transactionId || tx.transaction_id || body.transactionId;
+
+    const rawStatus = String(tx.status || body.status || "").toLowerCase();
 
     if (!reference) {
-      console.error("[webhook] missing reference", {
-        event,
-        delivery_id: body.delivery_id,
-      });
-      // Still 200 so Nylon doesn't keep retrying a malformed payload forever
+      console.error(
+        "[webhook] missing reference. Full body: " + JSON.stringify(body)
+      );
       return NextResponse.json({ received: true });
     }
 
-    // Map Nylon's real events:
-    // transaction.successful | transaction.failed | transaction.cancelled | transaction.processing
     const isSuccess =
+      event === "transaction.completed" ||
       event === "transaction.successful" ||
-      ["successful", "success", "completed", "paid"].includes(rawStatus);
+      event === "payment.completed" ||
+      event === "payment.success" ||
+      event === "invoice.paid" ||
+      ["success", "successful", "completed", "paid"].includes(rawStatus);
 
     const isFailure =
       event === "transaction.failed" ||
       event === "transaction.cancelled" ||
+      event === "payment.failed" ||
+      event === "payment.cancelled" ||
+      event === "invoice.failed" ||
       ["failed", "cancelled", "canceled", "expired"].includes(rawStatus);
 
-    // processing → leave pending (webhook may arrive before terminal state)
     const finalStatus = isSuccess
       ? "completed"
       : isFailure
         ? "failed"
         : "pending";
 
-    // Human-readable audit label for Path 2
-    const gatewayStatus =
-      event ||
-      (isSuccess
-        ? "transaction.successful"
-        : isFailure
-          ? "transaction.failed"
-          : rawStatus || "unknown");
-
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // Look up by payment_reference (invoice id / nylon id) first, then merchant reference
-    let { data: donation, error: findErr } = await supabase
-      .from("donations")
-      .select("*")
-      .eq("payment_reference", reference)
-      .maybeSingle();
+    // ── Multi-strategy lookup ──
+    let donation: any = null;
+    let matchedBy = "";
 
-    if (findErr) {
-      console.error("[webhook] lookup payment_reference error:", findErr);
-    }
+    // Try candidate references in order
+    const candidates = [
+      { value: reference, field: "payment_reference", tag: "ref→payment_reference" },
+      { value: reference, field: "reference", tag: "ref→reference" },
+      { value: transactionId, field: "payment_reference", tag: "txId→payment_reference" },
+      { value: transactionId, field: "reference", tag: "txId→reference" },
+      { value: body.metadata?.reference, field: "reference", tag: "meta→reference" },
+      { value: tx.metadata?.reference, field: "reference", tag: "tx.meta→reference" },
+      { value: body.metadata?.merchant_reference, field: "reference", tag: "meta.merchant→reference" },
+      { value: tx.metadata?.merchant_reference, field: "reference", tag: "tx.meta.merchant→reference" },
+    ].filter((c) => c.value);
 
-    if (!donation) {
-      const r2 = await supabase
+    for (const c of candidates) {
+      const r = await supabase
         .from("donations")
         .select("*")
-        .eq("reference", reference)
+        .eq(c.field, c.value as string)
         .maybeSingle();
-      if (r2.error) {
-        console.error("[webhook] lookup reference error:", r2.error);
+      if (r.data) {
+        donation = r.data;
+        matchedBy = c.tag;
+        break;
       }
-      donation = r2.data;
     }
 
-    // Fallback: metadata.reference from invoice create
-    if (!donation && (body.metadata?.reference || inner.metadata?.reference)) {
-      const metaRef =
-        body.metadata?.reference || inner.metadata?.reference;
-      const r3 = await supabase
-        .from("donations")
-        .select("*")
-        .eq("reference", metaRef)
-        .maybeSingle();
-      donation = r3.data;
+    // Last resort — ask Nylon Pay for the transaction metadata
+    if (!donation && transactionId) {
+      try {
+        const txInfo = await verifyPayment(transactionId);
+        if (txInfo.success && txInfo.reference) {
+          const r = await supabase
+            .from("donations")
+            .select("*")
+            .eq("reference", txInfo.reference)
+            .maybeSingle();
+          if (r.data) {
+            donation = r.data;
+            matchedBy = "nylonpay-lookup";
+          }
+        }
+      } catch (err: any) {
+        console.error("[webhook] Lookup error:", err?.message);
+      }
     }
 
     if (!donation) {
       console.error(
-        "[webhook] donation not found for reference:",
-        reference,
-        { event, delivery_id: body.delivery_id }
+        "[webhook] donation not found after all strategies. reference=" +
+          reference +
+          " transactionId=" +
+          transactionId +
+          " body=" +
+          JSON.stringify(body)
       );
       return NextResponse.json({ received: true });
     }
 
-    // Idempotency: don't overwrite completed/refunded with a later failed/processing
-    if (donation.status === "completed" || donation.status === "refunded") {
-      if (finalStatus !== "completed") {
-        console.log(
-          `[webhook] skip: donation ${donation.reference} already ${donation.status}`
-        );
-        return NextResponse.json({ received: true });
-      }
-    }
-
-    // Only move pending → terminal (or re-affirm completed)
-    if (finalStatus === "pending") {
-      console.log(
-        `[webhook] processing event for ${donation.reference} — leaving pending`
-      );
-      return NextResponse.json({ received: true });
-    }
+    console.log(
+      `[webhook] matched ${donation.reference} via ${matchedBy} → ${finalStatus}`
+    );
 
     await supabase
       .from("donations")
       .update({
         status: finalStatus,
         payment_method: "nylonpay",
-        gateway_status: gatewayStatus,
+        gateway_status: event || rawStatus || null,
         completed_at: isSuccess ? new Date().toISOString() : null,
         raw_gateway_response: body,
       })
       .eq("id", donation.id);
 
-    console.log(
-      `[webhook] donation ${donation.reference} → ${finalStatus} (${gatewayStatus})`
-    );
-
+    // ── Monthly charge handling ──
     const isMonthlyCharge = !!donation.parent_reference;
 
     if (isMonthlyCharge && finalStatus === "failed") {
@@ -169,19 +174,14 @@ export async function POST(req: NextRequest) {
             subscription_cancelled_at: new Date().toISOString(),
           })
           .eq("reference", donation.parent_reference);
-
-        console.warn(
-          `Pledge ${donation.parent_reference} deactivated after 3 failures`
-        );
       }
     }
 
+    // ── Receipt on success ──
     if (finalStatus === "completed" && donation.donor_email) {
       try {
         const { sendEmail } = await import("@/lib/email/resend");
-        const { donationReceiptEmail } = await import(
-          "@/lib/email/templates"
-        );
+        const { donationReceiptEmail } = await import("@/lib/email/templates");
 
         const html = donationReceiptEmail({
           donorName: donation.donor_name || "",
@@ -199,45 +199,17 @@ export async function POST(req: NextRequest) {
 
         await sendEmail({
           to: donation.donor_email,
-          subject: isMonthlyCharge
-            ? `Monthly Donation Receipt — ${donation.reference}`
-            : `Donation Receipt — ${donation.reference}`,
+          subject: `Donation Receipt — ${donation.reference}`,
           html,
         });
       } catch (emailErr) {
-        console.error("Failed to send receipt:", emailErr);
-      }
-    }
-
-    if (finalStatus === "failed") {
-      try {
-        const { sendEmail } = await import("@/lib/email/resend");
-        await sendEmail({
-          to: process.env.ADMIN_EMAIL!,
-          subject: isMonthlyCharge
-            ? `Monthly charge failed — ${donation.reference}`
-            : `Donation failed — ${donation.reference}`,
-          html: `
-            <p>Donation <strong>${donation.reference}</strong> failed.</p>
-            ${
-              isMonthlyCharge
-                ? `<p>Parent pledge: <strong>${donation.parent_reference}</strong></p>`
-                : ""
-            }
-            <p>Donor: ${donation.donor_email}</p>
-            <p>Amount: ${donation.amount} ${donation.currency}</p>
-            <p>Gateway: ${gatewayStatus}</p>
-          `,
-        });
-      } catch (emailErr) {
-        console.error("Failed to notify admin:", emailErr);
+        console.error("[webhook] receipt failed:", emailErr);
       }
     }
 
     return NextResponse.json({ received: true });
   } catch (error: any) {
-    console.error("[webhook] unhandled error:", error);
-    // Still 200 so Nylon doesn't treat a code bug as a permanent delivery failure
+    console.error("[webhook] handler error:", error?.message, error?.stack);
     return NextResponse.json({ received: true });
   }
 }
