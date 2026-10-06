@@ -164,20 +164,17 @@ export async function createInvoice(
 
 type NormalizedStatus = "pending" | "completed" | "failed" | "cancelled";
 
-// TransactionStatus from the SDK:
-//   "pending" | "processing" | "on_hold" | "successful" | "failed" | "cancelled"
-// We map "successful" → "completed" for consistency with our DB.
 function mapStatus(raw: string): NormalizedStatus {
   const s = raw.toLowerCase();
   const map: Record<string, NormalizedStatus> = {
     pending: "pending",
     processing: "pending",
     on_hold: "pending",
-    issued: "pending",       // invoice status when first created
+    issued: "pending",
     successful: "completed",
     success: "completed",
     completed: "completed",
-    paid: "completed",       // invoice status after payment
+    paid: "completed",
     failed: "failed",
     cancelled: "cancelled",
     canceled: "cancelled",
@@ -189,7 +186,6 @@ export async function verifyPayment(reference: string) {
   try {
     const nylonpay = getClient();
 
-    // ── Attempt 1: getStatus (works for direct collectPayment references)
     const statusResult = await nylonpay.getStatus({ reference });
 
     if (statusResult.isOk) {
@@ -213,9 +209,6 @@ export async function verifyPayment(reference: string) {
       firstErrorLower.includes("not_found") ||
       firstErrorLower.includes("not found");
 
-    // ── Attempt 2: getTransaction by id (works for invoice IDs)
-    // Invoice IDs from createInvoice live in the transaction space,
-    // not the payment-reference space, so getStatus can't see them.
     if (notFoundViaStatus) {
       try {
         const txResult = await nylonpay.getTransaction({ id: reference });
@@ -236,8 +229,6 @@ export async function verifyPayment(reference: string) {
             ? txResult.error
             : JSON.stringify(txResult.error);
 
-        // Both lookups failed — surface the original error so the caller
-        // can decide how to handle it (e.g., mark not_found).
         return {
           success: false,
           status: "pending" as const,
@@ -254,7 +245,6 @@ export async function verifyPayment(reference: string) {
       }
     }
 
-    // getStatus failed with something other than not_found (auth, network, etc.)
     return {
       success: false,
       status: "pending" as const,
@@ -273,25 +263,51 @@ export async function verifyPayment(reference: string) {
 // Webhook Signature Verification
 // ─────────────────────────────────────────────────────────────
 
+/**
+ * Verifies x-nylon-signature.
+ * IMPORTANT: secret MUST be the dedicated webhook secret from
+ * Dashboard → API Keys → Webhook Configuration — NOT NYLONPAY_API_SECRET.
+ */
 export function verifyWebhookSignature(
   payload: string | Buffer,
   signature: string
 ): boolean {
   const secret = (process.env.NYLONPAY_WEBHOOK_SECRET || "").trim();
+
   if (!secret) {
-    console.warn("NYLONPAY_WEBHOOK_SECRET not set — skipping verification");
-    return true;
+    console.error(
+      "[webhook] NYLONPAY_WEBHOOK_SECRET is not set. Refusing to accept webhooks."
+    );
+    return false;
+  }
+
+  if (!signature) {
+    console.error("[webhook] Missing x-nylon-signature header");
+    return false;
   }
 
   try {
     const nylonpay = getClient();
-    return nylonpay.verifyWebhookSignature({
+    const result = nylonpay.verifyWebhookSignature({
       payload,
       signature,
       secret,
+      // Default is 300s. Wider window is safer for cold starts / retries.
+      toleranceSeconds: 900,
     });
-  } catch (err) {
-    console.error("Webhook signature verify failed:", err);
+
+    if (!result) {
+      console.error("[webhook] Signature verification returned false", {
+        secretPrefix: secret.slice(0, 6),
+        signaturePrefix: signature.slice(0, 16),
+        payloadLength:
+          typeof payload === "string" ? payload.length : payload.byteLength,
+      });
+    }
+
+    return result;
+  } catch (err: any) {
+    console.error("[webhook] verifyWebhookSignature threw:", err?.message);
     return false;
   }
 }

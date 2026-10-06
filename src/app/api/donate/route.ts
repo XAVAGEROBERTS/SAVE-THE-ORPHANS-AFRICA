@@ -89,7 +89,11 @@ export async function POST(req: NextRequest) {
     if (!invoice.success || !invoice.payment_url) {
       await adminSupabase
         .from("donations")
-        .update({ status: "failed", raw_gateway_response: invoice })
+        .update({
+          status: "failed",
+          gateway_status: "invoice_create_failed",
+          raw_gateway_response: invoice,
+        })
         .eq("reference", merchantRef);
 
       return NextResponse.json(
