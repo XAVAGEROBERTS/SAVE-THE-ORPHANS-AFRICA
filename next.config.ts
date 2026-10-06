@@ -39,9 +39,9 @@ const securityHeaders = [
       "default-src 'self'",
       // Next.js needs 'unsafe-inline' for its runtime; 'unsafe-eval' in dev
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://plausible.io",
-      "style-src 'self' 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "img-src 'self' data: blob: https:",
-      "font-src 'self' data:",
+      "font-src 'self' data: https://fonts.gstatic.com",
       // Where the browser can make fetch/XHR calls. Add your payment provider:
       "connect-src 'self' https://plausible.io https://*.supabase.co wss://*.supabase.co https://api.resend.com https://api.nylonpay.com",
       // Where iframes can load from (payment providers use iframes)
