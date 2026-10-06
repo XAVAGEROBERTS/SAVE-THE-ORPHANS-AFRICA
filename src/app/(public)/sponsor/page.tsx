@@ -1,8 +1,51 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Heart, GraduationCap, Utensils, Home, Stethoscope, BookOpen, Shield } from "lucide-react";
+import {
+  Heart,
+  GraduationCap,
+  Utensils,
+  Home,
+  Stethoscope,
+  BookOpen,
+  Shield,
+} from "lucide-react";
 
-export const metadata: Metadata = { title: "Sponsor a Child" };
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
+  "https://save-the-orphans-africa.vercel.app";
+
+const SITE_NAME = "Save the Orphans Africa";
+
+const PAGE_DESCRIPTION =
+  "Sponsor a child in Africa from $15/month. Your monthly gift provides education, food, healthcare, and a safe home for a vulnerable child. Choose a cause and start today.";
+
+export const metadata: Metadata = {
+  title: "Sponsor a Child",
+  description: PAGE_DESCRIPTION,
+  alternates: { canonical: "/sponsor" },
+  openGraph: {
+    type: "website",
+    url: `${SITE_URL}/sponsor`,
+    siteName: SITE_NAME,
+    title: `Sponsor a Child | ${SITE_NAME}`,
+    description: PAGE_DESCRIPTION,
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: `Sponsor a Child — ${SITE_NAME}`,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `Sponsor a Child | ${SITE_NAME}`,
+    description: PAGE_DESCRIPTION,
+    images: ["/og-image.png"],
+  },
+  robots: { index: true, follow: true },
+};
 
 const categories = [
   {
@@ -49,15 +92,79 @@ const categories = [
   },
 ];
 
+// Structured data: ItemList of sponsorship offers + BreadcrumbList.
+// Each offer points to /donate with preset params — that page has its own
+// DonateAction schema, so we don't duplicate it here.
+const sponsorSchema = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "CollectionPage",
+      "@id": `${SITE_URL}/sponsor/#collection`,
+      url: `${SITE_URL}/sponsor`,
+      name: `Sponsor a Child | ${SITE_NAME}`,
+      description: PAGE_DESCRIPTION,
+      isPartOf: { "@id": `${SITE_URL}/#website` },
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": `${SITE_URL}/sponsor/#breadcrumb`,
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+        {
+          "@type": "ListItem",
+          position: 2,
+          name: "Sponsor a Child",
+          item: `${SITE_URL}/sponsor`,
+        },
+      ],
+    },
+    {
+      "@type": "ItemList",
+      "@id": `${SITE_URL}/sponsor/#offers`,
+      name: "Sponsorship Options",
+      itemListElement: categories.map((c, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        item: {
+          "@type": "Offer",
+          name: `${c.title} Sponsorship`,
+          description: c.description,
+          price: c.amount,
+          priceCurrency: "USD",
+          url: `${SITE_URL}/donate?amount=${c.amount}&program=${c.programSlug}&frequency=monthly&source=sponsor&label=${encodeURIComponent(c.title)}`,
+          availability: "https://schema.org/InStock",
+          priceSpecification: {
+            "@type": "UnitPriceSpecification",
+            price: c.amount,
+            priceCurrency: "USD",
+            billingDuration: "P1M",
+          },
+        },
+      })),
+    },
+  ],
+};
+
 export default function SponsorPage() {
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(sponsorSchema) }}
+      />
+
       <section className="relative pt-32 pb-20 bg-[#0B3D2E]">
         <div className="container-custom relative z-10 text-center">
-          <span className="text-gold font-semibold text-sm tracking-wider uppercase">Change a Life</span>
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mt-2 mb-4">Sponsor a Child</h1>
+          <span className="text-gold font-semibold text-sm tracking-wider uppercase">
+            Change a Life
+          </span>
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mt-2 mb-4">
+            Sponsor a Child
+          </h1>
           <p className="text-lg text-white/70 max-w-2xl mx-auto">
-            Your support can provide education, food, healthcare, and a safe environment for a vulnerable child.
+            Your support can provide education, food, healthcare, and a safe
+            environment for a vulnerable child.
           </p>
         </div>
       </section>
@@ -68,9 +175,13 @@ export default function SponsorPage() {
             <div className="flex items-start gap-3">
               <Shield className="w-6 h-6 text-gold-dark shrink-0 mt-0.5" />
               <div>
-                <h3 className="font-semibold text-dark mb-1">Child Safeguarding Commitment</h3>
+                <h3 className="font-semibold text-dark mb-1">
+                  Child Safeguarding Commitment
+                </h3>
                 <p className="text-sm text-dark/70 leading-relaxed">
-                  We are deeply committed to protecting the children in our care. Sponsorship funds are pooled to support all children in our programs.
+                  We are deeply committed to protecting the children in our
+                  care. Sponsorship funds are pooled to support all children in
+                  our programs.
                 </p>
               </div>
             </div>
@@ -85,9 +196,13 @@ export default function SponsorPage() {
                     <c.icon className="w-7 h-7 text-primary" />
                   </div>
                   <h3 className="font-bold text-lg mb-2">{c.title}</h3>
-                  <p className="text-dark/60 text-sm mb-4 flex-1">{c.description}</p>
+                  <p className="text-dark/60 text-sm mb-4 flex-1">
+                    {c.description}
+                  </p>
                   <div className="flex items-center justify-between pt-4 border-t border-light">
-                    <span className="font-bold text-primary">${c.amount}/month</span>
+                    <span className="font-bold text-primary">
+                      ${c.amount}/month
+                    </span>
                     <Link
                       href={sponsorUrl}
                       className="text-primary font-semibold text-sm hover:underline"
@@ -101,7 +216,10 @@ export default function SponsorPage() {
           </div>
 
           <div className="text-center">
-            <Link href="/donate?frequency=monthly&source=sponsor" className="btn-primary text-lg px-8 py-4">
+            <Link
+              href="/donate?frequency=monthly&source=sponsor"
+              className="btn-primary text-lg px-8 py-4"
+            >
               <Heart className="w-5 h-5" fill="currentColor" />
               Become a Sponsor
             </Link>

@@ -1,8 +1,41 @@
+// src/app/(public)/donate/page.tsx
 import type { Metadata } from "next";
 import { DonationForm } from "@/components/DonationForm/DonationForm";
 import { Shield, Heart, Users } from "lucide-react";
 
-export const metadata: Metadata = { title: "Donate" };
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
+  "https://save-the-orphans-africa.vercel.app";
+
+export const metadata: Metadata = {
+  title: "Donate",
+  description:
+    "Donate to Save the Orphans Africa. Your gift provides food, education, healthcare, and a safe home for vulnerable children. 85% of every donation goes directly to programs.",
+  alternates: { canonical: "/donate" },
+  openGraph: {
+    type: "website",
+    url: `${SITE_URL}/donate`,
+    title: "Donate | Save the Orphans Africa",
+    description:
+      "Every donation feeds, shelters, and educates an orphaned child. Give once or monthly — 85% goes directly to programs.",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Donate to Save the Orphans Africa",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Donate | Save the Orphans Africa",
+    description:
+      "Every donation feeds, shelters, and educates an orphaned child.",
+    images: ["/og-image.png"],
+  },
+  robots: { index: true, follow: true },
+};
 
 interface Props {
   searchParams: Promise<{
@@ -50,14 +83,18 @@ export default async function DonatePage({ searchParams }: Props) {
             <div className="max-w-2xl mx-auto mb-8">
               <div className="bg-gold/20 border-2 border-gold rounded-xl p-6">
                 <div className="flex items-start gap-3">
-                  <Heart className="w-6 h-6 text-gold-dark shrink-0 mt-0.5" fill="currentColor" />
+                  <Heart
+                    className="w-6 h-6 text-gold-dark shrink-0 mt-0.5"
+                    fill="currentColor"
+                  />
                   <div>
                     <h3 className="font-bold text-dark mb-1">
                       Sponsoring: <span className="capitalize">{label}</span>
                     </h3>
                     <p className="text-sm text-dark/70">
                       Monthly sponsorship of{" "}
-                      <span className="font-bold text-primary">${amount}</span> — your commitment provides ongoing support for this cause.
+                      <span className="font-bold text-primary">${amount}</span> —
+                      your commitment provides ongoing support for this cause.
                     </p>
                   </div>
                 </div>
@@ -76,12 +113,23 @@ export default async function DonatePage({ searchParams }: Props) {
             </div>
             <div className="space-y-6">
               <div className="card p-6">
-                <h3 className="font-bold text-lg mb-4">Why Your Donation Matters</h3>
+                <h3 className="font-bold text-lg mb-4">
+                  Why Your Donation Matters
+                </h3>
                 <ul className="space-y-4">
                   {[
-                    { icon: Heart, text: "85% of funds go directly to programs" },
-                    { icon: Shield, text: "Secure, encrypted payment processing" },
-                    { icon: Users, text: "Your gift transforms children's lives" },
+                    {
+                      icon: Heart,
+                      text: "85% of funds go directly to programs",
+                    },
+                    {
+                      icon: Shield,
+                      text: "Secure, encrypted payment processing",
+                    },
+                    {
+                      icon: Users,
+                      text: "Your gift transforms children's lives",
+                    },
                   ].map((item) => (
                     <li key={item.text} className="flex items-start gap-3">
                       <item.icon className="w-5 h-5 text-primary mt-0.5 shrink-0" />
