@@ -210,6 +210,16 @@ export default function DonationsPage() {
       );
       return;
     }
+
+    // Client-side guard: only completed can be refunded
+    const target = donations.find((d) => d.id === id);
+    if (!target || target.status !== "completed") {
+      alert(
+        `Cannot refund a donation with status "${target?.status || "unknown"}". Only completed donations can be refunded.`
+      );
+      return;
+    }
+
     setIsSaving(true);
     const res = await fetch(`/api/admin/donations/${id}`, {
       method: "PATCH",
@@ -290,24 +300,35 @@ export default function DonationsPage() {
   }
 
   async function bulkMarkRefunded() {
-    const count = selectedIds.size;
-    if (count === 0) return;
+    const selected = donations.filter((d) => selectedIds.has(d.id));
+    const refundable = selected.filter((d) => d.status === "completed");
+    const skipped = selected.length - refundable.length;
 
-    const verb = count === 1 ? "donation" : "donations";
-    if (!confirm(`Mark ${count} ${verb} as refunded?`)) return;
+    if (refundable.length === 0) {
+      alert(
+        "None of the selected donations can be refunded. Only completed donations can be refunded."
+      );
+      return;
+    }
+
+    const verb = refundable.length === 1 ? "donation" : "donations";
+    const skipMsg = skipped > 0 ? `\n\n${skipped} will be skipped (not completed).` : "";
+
+    if (!confirm(`Mark ${refundable.length} ${verb} as refunded?${skipMsg}`)) {
+      return;
+    }
 
     setIsBulkWorking(true);
-    const ids = Array.from(selectedIds);
     try {
       const results = await Promise.allSettled(
-        ids.map((id) =>
-          fetch(`/api/admin/donations/${id}`, {
+        refundable.map((d) =>
+          fetch(`/api/admin/donations/${d.id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ status: "refunded" }),
           }).then((r) => {
-            if (!r.ok) throw new Error(`Failed: ${id}`);
-            return id;
+            if (!r.ok) throw new Error(`Failed: ${d.id}`);
+            return d.id;
           })
         )
       );
@@ -315,9 +336,9 @@ export default function DonationsPage() {
       const succeeded = results.filter((r) => r.status === "fulfilled").length;
       clearSelection();
 
-      if (succeeded !== count) {
+      if (succeeded !== refundable.length) {
         alert(
-          `${succeeded} of ${count} updated. Some failed — refresh to see current state.`
+          `${succeeded} of ${refundable.length} refunded. Some failed — refresh to see current state.`
         );
       }
       load();
@@ -335,6 +356,13 @@ export default function DonationsPage() {
   ).length;
 
   const recurringCharges = donations.filter((d) => !!d.parent_reference).length;
+
+  // How many selected rows are refundable right now
+  const refundableSelectedCount = useMemo(() => {
+    return donations.filter(
+      (d) => selectedIds.has(d.id) && d.status === "completed"
+    ).length;
+  }, [donations, selectedIds]);
 
   function exportCSV() {
     const headers = [
@@ -460,15 +488,30 @@ export default function DonationsPage() {
             </button>
             <span className="text-sm font-semibold text-dark">
               {selectionCount} selected
+              {refundableSelectedCount > 0 && refundableSelectedCount < selectionCount && (
+                <span className="text-dark/50 font-normal">
+                  {" "}({refundableSelectedCount} refundable)
+                </span>
+              )}
             </span>
           </div>
           <div className="flex gap-2 flex-wrap">
             <button
               onClick={bulkMarkRefunded}
-              disabled={isBulkWorking}
-              className="px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 text-gray-800 hover:bg-gray-200 disabled:opacity-50"
+              disabled={isBulkWorking || refundableSelectedCount === 0}
+              title={
+                refundableSelectedCount === 0
+                  ? "Only completed donations can be refunded"
+                  : undefined
+              }
+              className="px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 text-gray-800 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Mark refunded
+              {refundableSelectedCount > 0 && (
+                <span className="ml-1 text-gray-500">
+                  ({refundableSelectedCount})
+                </span>
+              )}
             </button>
             <button
               onClick={bulkDelete}
@@ -682,22 +725,31 @@ export default function DonationsPage() {
             </div>
 
             <div className="mt-4 space-y-2">
-              <button
-                disabled={isSaving || editing.status === "refunded"}
-                onClick={() => updateStatus(editing.id, "refunded")}
-                className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-colors ${
-                  editing.status === "refunded"
-                    ? "border-primary bg-primary/5 opacity-60 cursor-not-allowed"
-                    : "border-light hover:border-primary/40"
-                }`}
-              >
-                <span className="font-medium">Mark as refunded</span>
-                <p className="text-xs text-dark/50 mt-0.5">
-                  {editing.status === "refunded"
-                    ? "Already refunded"
-                    : "Use only after you've issued an actual refund via Nylon Pay"}
-                </p>
-              </button>
+              {editing.status === "completed" ? (
+                <button
+                  disabled={isSaving}
+                  onClick={() => updateStatus(editing.id, "refunded")}
+                  className="w-full text-left px-4 py-3 rounded-lg border-2 border-light hover:border-primary/40 transition-colors disabled:opacity-50"
+                >
+                  <span className="font-medium">Mark as refunded</span>
+                  <p className="text-xs text-dark/50 mt-0.5">
+                    Use only after you've issued an actual refund via Nylon Pay
+                  </p>
+                </button>
+              ) : editing.status === "refunded" ? (
+                <div className="w-full text-left px-4 py-3 rounded-lg border-2 border-primary bg-primary/5 opacity-60">
+                  <span className="font-medium">Already refunded</span>
+                </div>
+              ) : (
+                <div className="w-full text-left px-4 py-3 rounded-lg border-2 border-light opacity-60">
+                  <span className="font-medium text-dark/50">
+                    No manual actions available
+                  </span>
+                  <p className="text-xs text-dark/40 mt-0.5">
+                    Only completed donations can be refunded
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>

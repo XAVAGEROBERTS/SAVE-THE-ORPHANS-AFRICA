@@ -6,10 +6,6 @@ interface Props {
   params: Promise<{ id: string }>;
 }
 
-// Admins can only set these statuses manually. Gateway-driven statuses
-// (completed, failed, pending) must come from Nylon Pay — webhook or cron.
-const ALLOWED_MANUAL_STATUSES = new Set(["refunded"]);
-
 export async function PATCH(req: NextRequest, { params }: Props) {
   const admin = await getCurrentAdmin();
   if (!admin) {
@@ -20,7 +16,8 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   const body = await req.json().catch(() => ({}));
   const { status } = body;
 
-  if (!status || !ALLOWED_MANUAL_STATUSES.has(status)) {
+  // Only one manual status transition is allowed.
+  if (status !== "refunded") {
     return NextResponse.json(
       {
         error:
@@ -33,9 +30,34 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   }
 
   const supabase = createAdminClient();
+
+  // Fetch the current row to check its status
+  const { data: existing, error: fetchErr } = await supabase
+    .from("donations")
+    .select("status")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (fetchErr) {
+    return NextResponse.json({ error: fetchErr.message }, { status: 500 });
+  }
+  if (!existing) {
+    return NextResponse.json({ error: "Donation not found" }, { status: 404 });
+  }
+
+  // Only completed donations can be refunded.
+  if (existing.status !== "completed") {
+    return NextResponse.json(
+      {
+        error: `Cannot refund a donation with status "${existing.status}". Only completed donations can be refunded.`,
+      },
+      { status: 400 }
+    );
+  }
+
   const { data, error } = await supabase
     .from("donations")
-    .update({ status })
+    .update({ status: "refunded" })
     .eq("id", id)
     .select()
     .single();
