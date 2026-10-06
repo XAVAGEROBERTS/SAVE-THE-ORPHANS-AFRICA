@@ -15,13 +15,11 @@ function getClient() {
       "Nylon Pay keys missing. Set NYLONPAY_API_KEY and NYLONPAY_API_SECRET in .env.local"
     );
   }
-
   if (!apiKey.startsWith("npk_")) {
     throw new Error(
       `Invalid API key format. Expected npk_... Got prefix: ${apiKey.slice(0, 12)}`
     );
   }
-
   if (!apiSecret.startsWith("nps_")) {
     throw new Error(
       `Invalid API secret format. Expected nps_... Got prefix: ${apiSecret.slice(0, 12)}`
@@ -62,13 +60,9 @@ export async function collectDonation(
     const nylonpay = getClient();
 
     if (!payload.customer.phone) {
-      return {
-        success: false,
-        error: "Phone number required for Mobile Money",
-      };
+      return { success: false, error: "Phone number required for Mobile Money" };
     }
 
-    // Nylon Pay requires a UUID reference
     const paymentReference = randomUUID();
 
     await nylonpay.collectPayment({
@@ -87,22 +81,15 @@ export async function collectDonation(
       } as Record<string, string>,
     });
 
-    return {
-      success: true,
-      reference: paymentReference,
-      status: "pending",
-    };
+    return { success: true, reference: paymentReference, status: "pending" };
   } catch (error: any) {
     console.error("collectDonation failed:", error);
-    return {
-      success: false,
-      error: error?.message || "Failed to start payment",
-    };
+    return { success: false, error: error?.message || "Failed to start payment" };
   }
 }
 
 // ─────────────────────────────────────────────────────────────
-// Card — Hosted Invoice Page (reserved for future card support)
+// Card / Hosted Invoice Page
 // ─────────────────────────────────────────────────────────────
 
 export interface CreateInvoicePayload {
@@ -167,56 +154,111 @@ export async function createInvoice(
     };
   } catch (error: any) {
     console.error("createInvoice failed:", error);
-    return {
-      success: false,
-      error: error?.message || "Failed to create invoice",
-    };
+    return { success: false, error: error?.message || "Failed to create invoice" };
   }
 }
 
 // ─────────────────────────────────────────────────────────────
-// Payment Status Verification
+// Payment / Invoice Status Verification
 // ─────────────────────────────────────────────────────────────
+
+type NormalizedStatus = "pending" | "completed" | "failed" | "cancelled";
+
+// TransactionStatus from the SDK:
+//   "pending" | "processing" | "on_hold" | "successful" | "failed" | "cancelled"
+// We map "successful" → "completed" for consistency with our DB.
+function mapStatus(raw: string): NormalizedStatus {
+  const s = raw.toLowerCase();
+  const map: Record<string, NormalizedStatus> = {
+    pending: "pending",
+    processing: "pending",
+    on_hold: "pending",
+    issued: "pending",       // invoice status when first created
+    successful: "completed",
+    success: "completed",
+    completed: "completed",
+    paid: "completed",       // invoice status after payment
+    failed: "failed",
+    cancelled: "cancelled",
+    canceled: "cancelled",
+  };
+  return map[s] || "pending";
+}
 
 export async function verifyPayment(reference: string) {
   try {
     const nylonpay = getClient();
-    const result = await nylonpay.getStatus({ reference });
 
-    if (!result.isOk) {
+    // ── Attempt 1: getStatus (works for direct collectPayment references)
+    const statusResult = await nylonpay.getStatus({ reference });
+
+    if (statusResult.isOk) {
+      const value = statusResult.value as any;
       return {
-        success: false,
-        status: "pending" as const,
-        error:
-          typeof result.error === "string"
-            ? result.error
-            : "Failed to verify payment",
+        success: true,
+        status: mapStatus(String(value.status || "")),
+        amount: value.amount,
+        currency: value.currency,
+        reference: value.reference || reference,
       };
     }
 
-    const raw = String((result.value as any).status || "").toLowerCase();
-    const statusMap: Record<
-      string,
-      "pending" | "completed" | "failed" | "cancelled"
-    > = {
-      pending: "pending",
-      processing: "pending",
-      on_hold: "pending",
-      success: "completed",
-      successful: "completed",
-      completed: "completed",
-      paid: "completed",
-      failed: "failed",
-      cancelled: "cancelled",
-      canceled: "cancelled",
-    };
+    const firstError =
+      typeof statusResult.error === "string"
+        ? statusResult.error
+        : JSON.stringify(statusResult.error);
 
+    const firstErrorLower = firstError.toLowerCase();
+    const notFoundViaStatus =
+      firstErrorLower.includes("not_found") ||
+      firstErrorLower.includes("not found");
+
+    // ── Attempt 2: getTransaction by id (works for invoice IDs)
+    // Invoice IDs from createInvoice live in the transaction space,
+    // not the payment-reference space, so getStatus can't see them.
+    if (notFoundViaStatus) {
+      try {
+        const txResult = await nylonpay.getTransaction({ id: reference });
+
+        if (txResult.isOk) {
+          const tx = txResult.value as any;
+          return {
+            success: true,
+            status: mapStatus(String(tx.status || "")),
+            amount: tx.amount,
+            currency: tx.currency,
+            reference: tx.reference || reference,
+          };
+        }
+
+        const txError =
+          typeof txResult.error === "string"
+            ? txResult.error
+            : JSON.stringify(txResult.error);
+
+        // Both lookups failed — surface the original error so the caller
+        // can decide how to handle it (e.g., mark not_found).
+        return {
+          success: false,
+          status: "pending" as const,
+          error: firstError,
+          fallbackError: txError,
+        };
+      } catch (err: any) {
+        return {
+          success: false,
+          status: "pending" as const,
+          error: firstError,
+          fallbackError: err?.message || "getTransaction failed",
+        };
+      }
+    }
+
+    // getStatus failed with something other than not_found (auth, network, etc.)
     return {
-      success: true,
-      status: statusMap[raw] || "pending",
-      amount: (result.value as any).amount,
-      currency: (result.value as any).currency,
-      reference: (result.value as any).reference || reference,
+      success: false,
+      status: "pending" as const,
+      error: firstError,
     };
   } catch (error: any) {
     return {

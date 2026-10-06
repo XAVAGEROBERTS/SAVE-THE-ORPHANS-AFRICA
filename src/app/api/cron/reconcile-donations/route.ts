@@ -40,20 +40,25 @@ export async function GET(req: NextRequest) {
 
       if (!verification.success) {
         const reason = String(verification.error || "");
+        const reasonLower = reason.toLowerCase();
 
-        // "Transaction not found" means Nylon Pay has no record of this UUID.
-        // Treat it as a terminal failure so it doesn't stay pending forever.
         const isNotFound =
-          reason.includes("not_found") ||
-          reason.toLowerCase().includes("transaction not found");
+          reasonLower.includes("not_found") ||
+          reasonLower.includes("not found");
 
         if (isNotFound) {
+          // Both getStatus AND getTransaction said not found.
+          // This is a genuinely orphaned reference — mark failed.
           await supabase
             .from("donations")
             .update({
               status: "failed",
               gateway_status: "not_found_at_gateway",
               completed_at: null,
+              raw_gateway_response: {
+                getStatus_error: reason,
+                getTransaction_error: verification.fallbackError || null,
+              },
             })
             .eq("id", row.id);
 
@@ -65,11 +70,11 @@ export async function GET(req: NextRequest) {
           continue;
         }
 
-        // Anything else (network error, auth, etc.) — leave as pending for retry
+        // Network / auth / transient errors — leave pending, retry next run
         results.push({
           reference: row.reference,
           action: "skip",
-          reason: verification.error,
+          reason,
         });
         continue;
       }
@@ -84,7 +89,6 @@ export async function GET(req: NextRequest) {
       } else if (verification.status === "failed") {
         newStatus = "failed";
       } else if (verification.status === "pending" && ageHours > 2) {
-        // Prompt abandoned — no response within 2 hours. Treat as failed.
         newStatus = "failed";
       }
 
