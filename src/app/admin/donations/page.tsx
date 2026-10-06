@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import {
   Search,
   Download,
@@ -9,6 +9,8 @@ import {
   Edit,
   X,
   RefreshCw,
+  CheckSquare,
+  Square,
 } from "lucide-react";
 import { formatCurrency, formatDateTime } from "@/utils/format";
 import { createClient } from "@/lib/supabase/client";
@@ -87,6 +89,8 @@ export default function DonationsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [editing, setEditing] = useState<Donation | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isBulkWorking, setIsBulkWorking] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -159,6 +163,49 @@ export default function DonationsPage() {
     setFiltered(result);
   }, [search, statusFilter, donations]);
 
+  // Clear selection when filter changes
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [statusFilter, search]);
+
+  const allVisibleSelected = useMemo(() => {
+    if (filtered.length === 0) return false;
+    return filtered.every((d) => selectedIds.has(d.id));
+  }, [filtered, selectedIds]);
+
+  const someVisibleSelected = useMemo(() => {
+    if (filtered.length === 0) return false;
+    const any = filtered.some((d) => selectedIds.has(d.id));
+    return any && !allVisibleSelected;
+  }, [filtered, selectedIds, allVisibleSelected]);
+
+  function toggleRow(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) {
+        // Unselect all visible
+        filtered.forEach((d) => next.delete(d.id));
+      } else {
+        // Select all visible
+        filtered.forEach((d) => next.add(d.id));
+      }
+      return next;
+    });
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set());
+  }
+
   async function updateStatus(id: string, status: string) {
     setIsSaving(true);
     await fetch(`/api/admin/donations/${id}`, {
@@ -174,6 +221,95 @@ export default function DonationsPage() {
     if (!confirm("Delete this donation?")) return;
     await fetch(`/api/admin/donations/${id}`, { method: "DELETE" });
     setDonations(donations.filter((d) => d.id !== id));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // Bulk operations
+  // ═══════════════════════════════════════════════════════════
+
+  async function bulkDelete() {
+    const count = selectedIds.size;
+    if (count === 0) return;
+
+    const verb = count === 1 ? "donation" : "donations";
+    if (
+      !confirm(
+        `Delete ${count} ${verb}? This cannot be undone.\n\nWarning: Recurring pledges with active subscriptions should be cancelled, not deleted.`
+      )
+    ) {
+      return;
+    }
+
+    setIsBulkWorking(true);
+    const ids = Array.from(selectedIds);
+    try {
+      const results = await Promise.allSettled(
+        ids.map((id) =>
+          fetch(`/api/admin/donations/${id}`, { method: "DELETE" }).then((r) => {
+            if (!r.ok) throw new Error(`Failed: ${id}`);
+            return id;
+          })
+        )
+      );
+
+      const succeeded = results
+        .filter((r) => r.status === "fulfilled")
+        .map((r: any) => r.value);
+
+      setDonations((prev) => prev.filter((d) => !succeeded.includes(d.id)));
+      clearSelection();
+
+      const failedCount = count - succeeded.length;
+      if (failedCount > 0) {
+        alert(
+          `${succeeded.length} of ${count} deleted.\n${failedCount} failed — refresh and try again.`
+        );
+      }
+    } finally {
+      setIsBulkWorking(false);
+    }
+  }
+
+  async function bulkUpdateStatus(status: string) {
+    const count = selectedIds.size;
+    if (count === 0) return;
+
+    const verb = count === 1 ? "donation" : "donations";
+    if (!confirm(`Mark ${count} ${verb} as "${status}"?`)) return;
+
+    setIsBulkWorking(true);
+    const ids = Array.from(selectedIds);
+    try {
+      const results = await Promise.allSettled(
+        ids.map((id) =>
+          fetch(`/api/admin/donations/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status }),
+          }).then((r) => {
+            if (!r.ok) throw new Error(`Failed: ${id}`);
+            return id;
+          })
+        )
+      );
+
+      const succeeded = results.filter((r) => r.status === "fulfilled").length;
+      clearSelection();
+
+      if (succeeded !== count) {
+        alert(
+          `${succeeded} of ${count} updated. Some failed — refresh to see current state.`
+        );
+      }
+      load();
+    } finally {
+      setIsBulkWorking(false);
+    }
   }
 
   const totalCompleted = donations
@@ -239,6 +375,8 @@ export default function DonationsPage() {
     URL.revokeObjectURL(url);
   }
 
+  const selectionCount = selectedIds.size;
+
   return (
     <div>
       <div className="mb-8 flex items-center justify-between flex-wrap gap-4">
@@ -296,6 +434,55 @@ export default function DonationsPage() {
         </div>
       </div>
 
+      {/* Bulk actions bar */}
+      {selectionCount > 0 && (
+        <div className="mb-4 flex items-center justify-between gap-4 flex-wrap p-3 rounded-lg bg-primary/5 border-2 border-primary/20">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={clearSelection}
+              className="p-1.5 rounded hover:bg-primary/10 text-primary"
+              title="Clear selection"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <span className="text-sm font-semibold text-dark">
+              {selectionCount} selected
+            </span>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={() => bulkUpdateStatus("completed")}
+              disabled={isBulkWorking}
+              className="px-3 py-1.5 rounded-lg text-sm font-medium bg-green-100 text-green-800 hover:bg-green-200 disabled:opacity-50"
+            >
+              Mark completed
+            </button>
+            <button
+              onClick={() => bulkUpdateStatus("failed")}
+              disabled={isBulkWorking}
+              className="px-3 py-1.5 rounded-lg text-sm font-medium bg-red-100 text-red-800 hover:bg-red-200 disabled:opacity-50"
+            >
+              Mark failed
+            </button>
+            <button
+              onClick={() => bulkUpdateStatus("refunded")}
+              disabled={isBulkWorking}
+              className="px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 text-gray-800 hover:bg-gray-200 disabled:opacity-50"
+            >
+              Mark refunded
+            </button>
+            <button
+              onClick={bulkDelete}
+              disabled={isBulkWorking}
+              className="px-3 py-1.5 rounded-lg text-sm font-medium bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 flex items-center gap-1.5"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Delete {selectionCount}
+            </button>
+          </div>
+        </div>
+      )}
+
       {isLoading ? (
         <p className="text-dark/60">Loading...</p>
       ) : filtered.length === 0 ? (
@@ -308,6 +495,23 @@ export default function DonationsPage() {
           <table className="w-full">
             <thead className="bg-light">
               <tr>
+                <th className="w-10 px-3 py-3">
+                  <button
+                    onClick={toggleSelectAll}
+                    className="p-1 rounded hover:bg-primary/10 text-primary"
+                    title={allVisibleSelected ? "Deselect all" : "Select all"}
+                  >
+                    {allVisibleSelected ? (
+                      <CheckSquare className="w-4 h-4" />
+                    ) : someVisibleSelected ? (
+                      <div className="w-4 h-4 border-2 border-primary rounded-sm flex items-center justify-center">
+                        <div className="w-2 h-0.5 bg-primary" />
+                      </div>
+                    ) : (
+                      <Square className="w-4 h-4" />
+                    )}
+                  </button>
+                </th>
                 <th className="text-left px-4 py-3 text-sm font-semibold">Reference</th>
                 <th className="text-left px-4 py-3 text-sm font-semibold">Donor</th>
                 <th className="text-left px-4 py-3 text-sm font-semibold">Amount</th>
@@ -324,8 +528,28 @@ export default function DonationsPage() {
                 const isRecurring = !!d.parent_reference;
                 const isRecurringPledge =
                   d.frequency === "monthly" && !d.parent_reference;
+                const isSelected = selectedIds.has(d.id);
+
                 return (
-                  <tr key={d.id} className="hover:bg-light/50">
+                  <tr
+                    key={d.id}
+                    className={`hover:bg-light/50 ${
+                      isSelected ? "bg-primary/5" : ""
+                    }`}
+                  >
+                    <td className="w-10 px-3 py-4">
+                      <button
+                        onClick={() => toggleRow(d.id)}
+                        className="p-1 rounded hover:bg-primary/10 text-primary"
+                        aria-label={isSelected ? "Deselect" : "Select"}
+                      >
+                        {isSelected ? (
+                          <CheckSquare className="w-4 h-4" />
+                        ) : (
+                          <Square className="w-4 h-4" />
+                        )}
+                      </button>
+                    </td>
                     <td className="px-4 py-4 text-xs font-mono text-dark/70">
                       <div>{d.reference}</div>
                       {d.payment_reference && (
