@@ -1,20 +1,20 @@
-// src/app/layout.tsx
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import "./globals.css";
 
-// Fail loudly in production if the env var is missing — you don't want
-// canonical URLs pointing at *.vercel.app forever.
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
   "https://save-the-orphans-africa.vercel.app";
 
 const SITE_NAME = "Save the Orphans Africa";
 
+const LOGO_URL =
+  process.env.NEXT_PUBLIC_SITE_LOGO_URL ||
+  "https://mkzqskurodstcmzlevte.supabase.co/storage/v1/object/public/site-images/logo.png";
+
 const DEFAULT_DESCRIPTION =
   "Save the Orphans Africa provides vulnerable children with care, education, protection, healthcare, and opportunities for a brighter future. Donate today and change a life.";
 
-// Viewport / theme-color — separate export in Next.js 15+
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
@@ -92,41 +92,53 @@ export const metadata: Metadata = {
     shortcut: "/logo.svg",
     apple: [{ url: "/logo.svg" }],
   },
-  manifest: "/manifest.webmanifest", // optional — see note below
+  manifest: "/manifest.webmanifest",
 };
 
-// JSON-LD Organization/NGO schema — powers Google's rich results for nonprofits
-const orgSchema = {
+// ---------------------------------------------------------------------------
+// Single authoritative NGO + WebSite schema.
+// Do not duplicate this in other layouts or pages — reference it via @id.
+// ---------------------------------------------------------------------------
+const organizationSchema = {
   "@context": "https://schema.org",
   "@type": "NGO",
+  "@id": `${SITE_URL}/#organization`,
   name: SITE_NAME,
+  alternateName: "SOA",
   url: SITE_URL,
-  logo: `${SITE_URL}/logo.svg`,
+  logo: LOGO_URL,
+  image: LOGO_URL,
   description: DEFAULT_DESCRIPTION,
+  foundingDate: "2015",
   address: {
     "@type": "PostalAddress",
+    streetAddress: "123 Hope Street",
+    addressLocality: "Kampala",
     addressCountry: "UG",
   },
-  // Only include donationUrl once it's stable
-  donationUrl: `${SITE_URL}/donate`,
-  // Add these once you have real social profiles:
-  // sameAs: [
-  //   "https://facebook.com/yourpage",
-  //   "https://twitter.com/yourhandle",
-  //   "https://instagram.com/yourhandle",
-  // ],
+  contactPoint: {
+    "@type": "ContactPoint",
+    telephone: "+256-700-000-000",
+    contactType: "Donor Support",
+    email: "info@savetheorphansafrica.org",
+    availableLanguage: ["English"],
+  },
+  sameAs: [
+    "https://facebook.com/savetheorphansafrica",
+    "https://twitter.com/savetheorphansafrica",
+    "https://instagram.com/savetheorphansafrica",
+    "https://linkedin.com/company/savetheorphansafrica",
+    "https://youtube.com/@savetheorphansafrica",
+  ],
 };
 
 const websiteSchema = {
   "@context": "https://schema.org",
   "@type": "WebSite",
-  name: SITE_NAME,
+  "@id": `${SITE_URL}/#website`,
   url: SITE_URL,
-  potentialAction: {
-    "@type": "SearchAction",
-    target: `${SITE_URL}/stories?q={search_term_string}`,
-    "query-input": "required name=search_term_string",
-  },
+  name: SITE_NAME,
+  publisher: { "@id": `${SITE_URL}/#organization` },
 };
 
 export default function RootLayout({
@@ -137,10 +149,9 @@ export default function RootLayout({
   return (
     <html lang="en" data-scroll-behavior="smooth">
       <body>
-        {/* JSON-LD — placed in body is fine and avoids head injection quirks */}
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(orgSchema) }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
         />
         <script
           type="application/ld+json"
@@ -149,7 +160,6 @@ export default function RootLayout({
 
         {children}
 
-        {/* Plausible — domain pulled from env so it never goes stale */}
         <Script
           defer
           data-domain={new URL(SITE_URL).hostname}
