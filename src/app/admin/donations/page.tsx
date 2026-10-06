@@ -211,7 +211,6 @@ export default function DonationsPage() {
       return;
     }
 
-    // Client-side guard: only completed can be refunded
     const target = donations.find((d) => d.id === id);
     if (!target || target.status !== "completed") {
       alert(
@@ -256,6 +255,11 @@ export default function DonationsPage() {
     });
   }
 
+  // ═══════════════════════════════════════════════════════════
+  // Bulk operations — routed through /api/admin/donations/bulk
+  // so the activity log gets ONE entry per bulk action, not one per row.
+  // ═══════════════════════════════════════════════════════════
+
   async function bulkDelete() {
     const count = selectedIds.size;
     if (count === 0) return;
@@ -270,30 +274,26 @@ export default function DonationsPage() {
     }
 
     setIsBulkWorking(true);
-    const ids = Array.from(selectedIds);
     try {
-      const results = await Promise.allSettled(
-        ids.map((id) =>
-          fetch(`/api/admin/donations/${id}`, { method: "DELETE" }).then((r) => {
-            if (!r.ok) throw new Error(`Failed: ${id}`);
-            return id;
-          })
-        )
-      );
+      const res = await fetch("/api/admin/donations/bulk", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ids: Array.from(selectedIds),
+          action: "delete",
+        }),
+      });
 
-      const succeeded = results
-        .filter((r) => r.status === "fulfilled")
-        .map((r: any) => r.value);
-
-      setDonations((prev) => prev.filter((d) => !succeeded.includes(d.id)));
-      clearSelection();
-
-      const failedCount = count - succeeded.length;
-      if (failedCount > 0) {
-        alert(
-          `${succeeded.length} of ${count} deleted.\n${failedCount} failed — refresh and try again.`
-        );
+      const json = await res.json();
+      if (!res.ok) {
+        alert(json.error || "Bulk delete failed");
+        return;
       }
+
+      clearSelection();
+      load();
+    } catch (err: any) {
+      alert(err?.message || "Bulk delete failed");
     } finally {
       setIsBulkWorking(false);
     }
@@ -312,7 +312,8 @@ export default function DonationsPage() {
     }
 
     const verb = refundable.length === 1 ? "donation" : "donations";
-    const skipMsg = skipped > 0 ? `\n\n${skipped} will be skipped (not completed).` : "";
+    const skipMsg =
+      skipped > 0 ? `\n\n${skipped} will be skipped (not completed).` : "";
 
     if (!confirm(`Mark ${refundable.length} ${verb} as refunded?${skipMsg}`)) {
       return;
@@ -320,28 +321,25 @@ export default function DonationsPage() {
 
     setIsBulkWorking(true);
     try {
-      const results = await Promise.allSettled(
-        refundable.map((d) =>
-          fetch(`/api/admin/donations/${d.id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ status: "refunded" }),
-          }).then((r) => {
-            if (!r.ok) throw new Error(`Failed: ${d.id}`);
-            return d.id;
-          })
-        )
-      );
+      const res = await fetch("/api/admin/donations/bulk", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ids: Array.from(selectedIds),
+          action: "refund",
+        }),
+      });
 
-      const succeeded = results.filter((r) => r.status === "fulfilled").length;
-      clearSelection();
-
-      if (succeeded !== refundable.length) {
-        alert(
-          `${succeeded} of ${refundable.length} refunded. Some failed — refresh to see current state.`
-        );
+      const json = await res.json();
+      if (!res.ok) {
+        alert(json.error || "Bulk refund failed");
+        return;
       }
+
+      clearSelection();
       load();
+    } catch (err: any) {
+      alert(err?.message || "Bulk refund failed");
     } finally {
       setIsBulkWorking(false);
     }
@@ -357,7 +355,6 @@ export default function DonationsPage() {
 
   const recurringCharges = donations.filter((d) => !!d.parent_reference).length;
 
-  // How many selected rows are refundable right now
   const refundableSelectedCount = useMemo(() => {
     return donations.filter(
       (d) => selectedIds.has(d.id) && d.status === "completed"
@@ -488,11 +485,12 @@ export default function DonationsPage() {
             </button>
             <span className="text-sm font-semibold text-dark">
               {selectionCount} selected
-              {refundableSelectedCount > 0 && refundableSelectedCount < selectionCount && (
-                <span className="text-dark/50 font-normal">
-                  {" "}({refundableSelectedCount} refundable)
-                </span>
-              )}
+              {refundableSelectedCount > 0 &&
+                refundableSelectedCount < selectionCount && (
+                  <span className="text-dark/50 font-normal">
+                    {" "}({refundableSelectedCount} refundable)
+                  </span>
+                )}
             </span>
           </div>
           <div className="flex gap-2 flex-wrap">

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentAdmin } from "@/lib/admin/auth";
+import { logActivity, summarizeRecord, getRequestInfo } from "@/lib/admin/activity-log";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -16,7 +17,6 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   const body = await req.json().catch(() => ({}));
   const { status } = body;
 
-  // Only one manual status transition is allowed.
   if (status !== "refunded") {
     return NextResponse.json(
       {
@@ -31,10 +31,9 @@ export async function PATCH(req: NextRequest, { params }: Props) {
 
   const supabase = createAdminClient();
 
-  // Fetch the current row to check its status
   const { data: existing, error: fetchErr } = await supabase
     .from("donations")
-    .select("status")
+    .select("status, reference, donor_email, amount, currency")
     .eq("id", id)
     .maybeSingle();
 
@@ -45,7 +44,6 @@ export async function PATCH(req: NextRequest, { params }: Props) {
     return NextResponse.json({ error: "Donation not found" }, { status: 404 });
   }
 
-  // Only completed donations can be refunded.
   if (existing.status !== "completed") {
     return NextResponse.json(
       {
@@ -66,6 +64,24 @@ export async function PATCH(req: NextRequest, { params }: Props) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  const { ipAddress, userAgent } = getRequestInfo(req);
+  await logActivity({
+    userId: admin.id,
+    userEmail: admin.email,
+    userName: admin.name || null,
+    action: "update",
+    tableName: "donations",
+    recordId: id,
+    recordSummary: summarizeRecord("donations", data),
+    changes: {
+      field: "status",
+      from: existing.status,
+      to: "refunded",
+    },
+    ipAddress,
+    userAgent,
+  });
+
   return NextResponse.json({ data });
 }
 
@@ -77,11 +93,45 @@ export async function DELETE(req: NextRequest, { params }: Props) {
 
   const { id } = await params;
   const supabase = createAdminClient();
-  const { error } = await supabase.from("donations").delete().eq("id", id);
 
+  // Fetch the row BEFORE deleting so the log has meaningful info
+  const { data: existing, error: fetchErr } = await supabase
+    .from("donations")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (fetchErr) {
+    return NextResponse.json({ error: fetchErr.message }, { status: 500 });
+  }
+  if (!existing) {
+    return NextResponse.json({ error: "Donation not found" }, { status: 404 });
+  }
+
+  const { error } = await supabase.from("donations").delete().eq("id", id);
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  const { ipAddress, userAgent } = getRequestInfo(req);
+  await logActivity({
+    userId: admin.id,
+    userEmail: admin.email,
+    userName: admin.name || null,
+    action: "delete",
+    tableName: "donations",
+    recordId: id,
+    recordSummary: summarizeRecord("donations", existing),
+    changes: {
+      reference: existing.reference,
+      status: existing.status,
+      amount: existing.amount,
+      currency: existing.currency,
+      donor_email: existing.donor_email,
+    },
+    ipAddress,
+    userAgent,
+  });
 
   return NextResponse.json({ success: true });
 }
