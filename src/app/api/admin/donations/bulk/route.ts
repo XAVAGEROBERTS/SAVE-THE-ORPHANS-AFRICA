@@ -83,7 +83,7 @@ export async function PATCH(req: NextRequest) {
   await logActivity({
     userId: admin.id,
     userEmail: admin.email,
-    userName: admin.name || null,
+    userName: admin.full_name || null,
     action: action === "refund" ? "update" : "delete",
     tableName: "donations",
     recordId: null,

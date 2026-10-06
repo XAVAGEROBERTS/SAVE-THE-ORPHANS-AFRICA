@@ -68,7 +68,7 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   await logActivity({
     userId: admin.id,
     userEmail: admin.email,
-    userName: admin.name || null,
+    userName: admin.full_name || null,
     action: "update",
     tableName: "donations",
     recordId: id,
@@ -117,7 +117,7 @@ export async function DELETE(req: NextRequest, { params }: Props) {
   await logActivity({
     userId: admin.id,
     userEmail: admin.email,
-    userName: admin.name || null,
+    userName: admin.full_name || null,
     action: "delete",
     tableName: "donations",
     recordId: id,
