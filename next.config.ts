@@ -43,7 +43,7 @@ const securityHeaders = [
       "img-src 'self' data: blob: https:",
       "font-src 'self' data:",
       // Where the browser can make fetch/XHR calls. Add your payment provider:
-      "connect-src 'self' https://plausible.io https://*.supabase.co https://api.resend.com https://api.nylonpay.com",
+      "connect-src 'self' https://plausible.io https://*.supabase.co wss://*.supabase.co https://api.resend.com https://api.nylonpay.com",
       // Where iframes can load from (payment providers use iframes)
       "frame-src 'self' https://js.stripe.com https://checkout.flutterwave.com",
       // Only your own site can frame you
