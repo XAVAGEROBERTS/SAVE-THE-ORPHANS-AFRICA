@@ -7,7 +7,7 @@ function getCredentials() {
   return { apiKey, apiSecret };
 }
 
-function getClient() {
+export function getClient() {
   const { apiKey, apiSecret } = getCredentials();
 
   if (!apiKey || !apiSecret) {
