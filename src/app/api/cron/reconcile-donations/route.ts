@@ -4,9 +4,9 @@ import { verifyPayment } from "@/lib/nylonpay";
 
 // ---- Thresholds (tunable) ----
 // ABANDONED: no payment_reference after this window → user never started on Nylon
-const ABANDONED_AFTER_MS = 15 * 60 * 1000; // 15 min
+const ABANDONED_AFTER_MS = 1 * 60 * 1000; // ⚠️ TEMPORARY 1 MIN — REVERT TO 15
 // NEVER_STARTED: Nylon status is "initiated" → user opened checkout but never entered phone
-const NEVER_STARTED_AFTER_MS = 15 * 60 * 1000; // 15 min
+const NEVER_STARTED_AFTER_MS = 1 * 60 * 1000; // ⚠️ TEMPORARY 1 MIN — REVERT TO 15
 // EXPIRED: user entered phone but didn't confirm within this window
 const EXPIRED_AFTER_MS = 60 * 60 * 1000; // 60 min
 
