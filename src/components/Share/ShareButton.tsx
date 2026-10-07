@@ -166,7 +166,7 @@ export function ShareButton({ title, url, description }: ShareButtonProps) {
           role="menu"
           className="
             fixed sm:absolute
-            inset-x-0 bottom-0 sm:inset-x-auto sm:top-full sm:right-0 sm:mt-2
+            inset-x-0 bottom-0 sm:inset-x-auto sm:bottom-auto sm:top-full sm:right-0 sm:mt-2
             z-50
             w-full sm:w-64
             max-w-full sm:max-w-[calc(100vw-2rem)]
