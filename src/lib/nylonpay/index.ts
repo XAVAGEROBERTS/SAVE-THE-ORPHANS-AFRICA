@@ -193,6 +193,7 @@ export async function verifyPayment(reference: string) {
       return {
         success: true,
         status: mapStatus(String(value.status || "")),
+        rawStatus: String(value.status || ""),
         amount: value.amount,
         currency: value.currency,
         reference: value.reference || reference,
@@ -218,6 +219,7 @@ export async function verifyPayment(reference: string) {
           return {
             success: true,
             status: mapStatus(String(tx.status || "")),
+            rawStatus: String(tx.status || ""),
             amount: tx.amount,
             currency: tx.currency,
             reference: tx.reference || reference,

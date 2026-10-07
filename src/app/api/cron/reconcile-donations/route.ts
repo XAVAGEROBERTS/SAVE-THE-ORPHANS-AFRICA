@@ -5,7 +5,9 @@ import { verifyPayment } from "@/lib/nylonpay";
 // ---- Thresholds (tunable) ----
 // ABANDONED: no payment_reference after this window → user never started on Nylon
 const ABANDONED_AFTER_MS = 15 * 60 * 1000; // 15 min
-// EXPIRED: has payment_reference but still pending after this → user started, never completed
+// NEVER_STARTED: Nylon status is "initiated" → user opened checkout but never entered phone
+const NEVER_STARTED_AFTER_MS = 15 * 60 * 1000; // 15 min
+// EXPIRED: user entered phone but didn't confirm within this window
 const EXPIRED_AFTER_MS = 60 * 60 * 1000; // 60 min
 
 export async function GET(req: NextRequest) {
@@ -136,25 +138,41 @@ export async function GET(req: NextRequest) {
         continue;
       }
 
-      // Still pending on Nylon's side
+      // ---- Nylon still shows it as pending or initiated ----
       if (verification.status === "pending") {
-        if (ageMs >= EXPIRED_AFTER_MS) {
+        // Distinguish:
+        //   rawStatus === "initiated" → user never entered phone (STK never sent)
+        //   anything else pending     → user is/was in the flow
+        const rawStatus = String((verification as any).rawStatus || "").toLowerCase();
+        const isInitiated = rawStatus === "initiated";
+        const threshold = isInitiated ? NEVER_STARTED_AFTER_MS : EXPIRED_AFTER_MS;
+
+        if (ageMs >= threshold) {
+          const newStatus = isInitiated ? "abandoned" : "expired";
+          const gatewayStatus = isInitiated
+            ? "abandoned_no_stk"
+            : "expired_no_confirmation";
+
           await supabase
             .from("donations")
             .update({
-              status: "expired",
-              gateway_status: "expired_no_confirmation",
+              status: newStatus,
+              gateway_status: gatewayStatus,
               completed_at: null,
               updated_at: new Date().toISOString(),
             })
             .eq("id", row.id);
 
-          results.push({ reference: row.reference, action: "expired" });
+          results.push({
+            reference: row.reference,
+            action: newStatus,
+            reason: isInitiated ? "initiated_stale" : "pending_stale",
+          });
         } else {
-          // Still within grace — leave pending, check next run
           results.push({
             reference: row.reference,
             action: "still_pending",
+            rawStatus,
             age_minutes: Math.round(ageMs / 60000),
           });
         }
