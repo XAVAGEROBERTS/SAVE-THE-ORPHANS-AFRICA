@@ -602,31 +602,20 @@ const load = useCallback(async () => {
                         )}
                       </button>
                     </td>
-                    <td className="px-4 py-4 text-xs text-dark/70 max-w-[300px]">
-                      <div className="mb-1">
-                        <div className="text-[9px] uppercase tracking-wider text-dark/40 font-semibold mb-0.5">
-                          Merchant Reference
-                        </div>
-                        <div className="font-mono break-all text-dark">{d.reference}</div>
+                    <td className="px-4 py-4 text-xs max-w-[320px]">
+                      <div className="font-mono text-[11px] text-dark leading-tight">
+                        {d.reference}
                       </div>
                       {d.payment_reference && (
-                        <div className="mb-1">
-                          <div className="text-[9px] uppercase tracking-wider text-dark/40 font-semibold mb-0.5">
-                            Invoice ID
-                          </div>
-                          <div className="font-mono break-all text-dark/60">
-                            {d.payment_reference}
-                          </div>
+                        <div className="font-mono text-[10px] text-dark/45 mt-0.5 leading-tight">
+                          <span className="text-dark/35 not-italic">INV </span>
+                          {d.payment_reference}
                         </div>
                       )}
                       {d.nylon_transaction_id && (
-                        <div>
-                          <div className="text-[9px] uppercase tracking-wider text-dark/40 font-semibold mb-0.5">
-                            Transaction ID
-                          </div>
-                          <div className="font-mono break-all text-dark/50 text-[10px]">
-                            {d.nylon_transaction_id}
-                          </div>
+                        <div className="font-mono text-[10px] text-dark/35 mt-0.5 leading-tight">
+                          <span className="text-dark/25">TXN </span>
+                          {d.nylon_transaction_id}
                         </div>
                       )}
                     </td>
