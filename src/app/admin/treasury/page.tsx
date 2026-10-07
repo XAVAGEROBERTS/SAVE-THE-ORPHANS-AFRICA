@@ -324,11 +324,21 @@ export default function TreasuryPage() {
                     const tb = typeBadge(t.type);
                     return (
                       <tr key={t.id} className="hover:bg-light/50">
-                        <td className="px-4 py-3 font-mono text-xs text-dark/80">
-                          <div className="break-all">{t.reference}</div>
+                        <td className="px-4 py-3 text-xs text-dark/80 max-w-[280px]">
+                          <div className="mb-1">
+                            <div className="text-[9px] uppercase tracking-wider text-dark/40 font-semibold mb-0.5">
+                              Transaction
+                            </div>
+                            <div className="font-mono break-all">{t.reference}</div>
+                          </div>
                           {t.merchantRef && (
-                            <div className="text-[10px] text-primary font-semibold mt-0.5">
-                              {t.merchantRef}
+                            <div>
+                              <div className="text-[9px] uppercase tracking-wider text-dark/40 font-semibold mb-0.5">
+                                Merchant
+                              </div>
+                              <div className="font-mono text-primary font-semibold break-all">
+                                {t.merchantRef}
+                              </div>
                             </div>
                           )}
                         </td>

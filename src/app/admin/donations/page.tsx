@@ -602,16 +602,31 @@ const load = useCallback(async () => {
                         )}
                       </button>
                     </td>
-                    <td className="px-4 py-4 text-xs font-mono text-dark/70 max-w-[280px]">
-                      <div className="break-all">{d.reference}</div>
+                    <td className="px-4 py-4 text-xs text-dark/70 max-w-[300px]">
+                      <div className="mb-1">
+                        <div className="text-[9px] uppercase tracking-wider text-dark/40 font-semibold mb-0.5">
+                          Merchant
+                        </div>
+                        <div className="font-mono break-all text-dark">{d.reference}</div>
+                      </div>
                       {d.payment_reference && (
-                        <div className="text-dark/50 mt-0.5 break-all">
-                          {d.payment_reference}
+                        <div className="mb-1">
+                          <div className="text-[9px] uppercase tracking-wider text-dark/40 font-semibold mb-0.5">
+                            Invoice
+                          </div>
+                          <div className="font-mono break-all text-dark/60">
+                            {d.payment_reference}
+                          </div>
                         </div>
                       )}
                       {d.nylon_transaction_id && (
-                        <div className="text-dark/35 mt-0.5 break-all text-[10px]">
-                          {d.nylon_transaction_id}
+                        <div>
+                          <div className="text-[9px] uppercase tracking-wider text-dark/40 font-semibold mb-0.5">
+                            Transaction
+                          </div>
+                          <div className="font-mono break-all text-dark/50 text-[10px]">
+                            {d.nylon_transaction_id}
+                          </div>
                         </div>
                       )}
                     </td>
