@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   Share2,
   Facebook,
@@ -20,12 +20,51 @@ interface ShareButtonProps {
   description?: string;
 }
 
+type Direction = "up" | "down";
+
 export function ShareButton({ title, url, description }: ShareButtonProps) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  const [direction, setDirection] = useState<Direction>("down");
+  const [isMobile, setIsMobile] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
-  // Close on outside click (desktop)
+  // Detect mobile vs desktop (bottom sheet on mobile, dropdown on desktop)
+  useEffect(() => {
+    function update() {
+      setIsMobile(window.matchMedia("(max-width: 639px)").matches);
+    }
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  // Decide flip direction based on available space
+  useLayoutEffect(() => {
+    if (!open || isMobile) return;
+    const trigger = triggerRef.current;
+    const panel = panelRef.current;
+    if (!trigger || !panel) return;
+
+    const triggerRect = trigger.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
+
+    const spaceBelow = window.innerHeight - triggerRect.bottom - 12;
+    const spaceAbove = triggerRect.top - 12;
+
+    if (panelRect.height <= spaceBelow) {
+      setDirection("down");
+    } else if (panelRect.height <= spaceAbove) {
+      setDirection("up");
+    } else {
+      // Doesn't fit either way — pick the side with more room
+      setDirection(spaceBelow >= spaceAbove ? "down" : "up");
+    }
+  }, [open, isMobile]);
+
+  // Close handlers
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -38,15 +77,16 @@ export function ShareButton({ title, url, description }: ShareButtonProps) {
     if (open) {
       document.addEventListener("mousedown", handleClick);
       document.addEventListener("keydown", handleKey);
-      // Prevent body scroll on mobile while menu is open
-      document.body.style.overflow = "hidden";
+      if (isMobile) {
+        document.body.style.overflow = "hidden";
+      }
       return () => {
         document.removeEventListener("mousedown", handleClick);
         document.removeEventListener("keydown", handleKey);
         document.body.style.overflow = "";
       };
     }
-  }, [open]);
+  }, [open, isMobile]);
 
   function resolveUrl() {
     if (url) return url;
@@ -141,6 +181,7 @@ export function ShareButton({ title, url, description }: ShareButtonProps) {
   return (
     <div ref={menuRef} className="relative inline-block">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label="Share this story"
@@ -152,67 +193,76 @@ export function ShareButton({ title, url, description }: ShareButtonProps) {
       </button>
 
       {/* Mobile backdrop */}
-      {open && (
+      {open && isMobile && (
         <div
-          className="fixed inset-0 bg-black/40 z-40 sm:hidden"
+          className="fixed inset-0 bg-black/40 z-40"
           onClick={() => setOpen(false)}
           aria-hidden="true"
         />
       )}
 
-      {/* Menu — bottom sheet on mobile, dropdown on desktop */}
+      {/* Menu — bottom sheet on mobile, flip-aware dropdown on desktop */}
       {open && (
         <div
+          ref={panelRef}
           role="menu"
-          className="
-            fixed sm:absolute
-            inset-x-0 bottom-0 sm:inset-x-auto sm:bottom-auto sm:top-full sm:right-0 sm:mt-2
-            z-50
-            w-full sm:w-64
-            max-w-full sm:max-w-[calc(100vw-2rem)]
-            bg-white
-            rounded-t-2xl sm:rounded-xl
-            shadow-2xl border-t sm:border border-light
-            overflow-hidden
-            animate-in slide-in-from-top-2
-            duration-200
-          "
+          className={[
+            "z-50 bg-white overflow-hidden",
+            // Mobile: bottom sheet
+            isMobile
+              ? "fixed inset-x-0 bottom-0 w-full rounded-t-2xl shadow-2xl border-t border-light"
+              : // Desktop: flip-aware dropdown
+                [
+                  "absolute right-0 w-64 rounded-xl shadow-2xl border border-light",
+                  direction === "up" ? "bottom-full mb-2" : "top-full mt-2",
+                ].join(" "),
+          ].join(" ")}
         >
-          {/* Header (mobile sheet) */}
-          <div className="sm:hidden flex items-center justify-between px-5 py-4 border-b border-light">
-            <span className="font-semibold text-dark text-sm">Share this story</span>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              aria-label="Close share menu"
-              className="w-8 h-8 rounded-full flex items-center justify-center text-dark/60 hover:bg-light transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+          {/* Mobile header */}
+          {isMobile && (
+            <>
+              <div className="flex items-center justify-between px-5 py-4 border-b border-light">
+                <span className="font-semibold text-dark text-sm">
+                  Share this story
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  aria-label="Close share menu"
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-dark/60 hover:bg-light transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-10 h-1 rounded-full bg-dark/15" />
+              </div>
+            </>
+          )}
 
-          {/* Sheet handle (mobile only, small touch) */}
-          <div className="sm:hidden flex justify-center pt-3 pb-1">
-            <div className="w-10 h-1 rounded-full bg-dark/15" />
-          </div>
-
-          <div className="py-2 sm:py-1">
+          <div className={isMobile ? "py-2" : "py-1"}>
             {ITEMS.map((item) => (
               <button
                 key={item.key}
                 type="button"
                 role="menuitem"
                 onClick={item.action}
-                className="w-full flex items-center gap-4 px-5 sm:px-4 py-4 sm:py-3 text-base sm:text-sm text-dark hover:bg-light active:bg-light transition-colors"
+                className={[
+                  "w-full flex items-center gap-4 text-dark hover:bg-light active:bg-light transition-colors",
+                  isMobile
+                    ? "px-5 py-4 text-base"
+                    : "px-4 py-3 text-sm gap-3",
+                ].join(" ")}
               >
                 {item.icon}
-                <span className="font-medium sm:font-normal">{item.label}</span>
+                <span className={isMobile ? "font-medium" : ""}>
+                  {item.label}
+                </span>
               </button>
             ))}
           </div>
 
-          {/* Safe area padding (mobile) */}
-          <div className="sm:hidden h-4" />
+          {isMobile && <div className="h-4" />}
         </div>
       )}
     </div>
