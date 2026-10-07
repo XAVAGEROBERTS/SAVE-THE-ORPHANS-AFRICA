@@ -42,6 +42,8 @@ const statusColors: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-800",
   failed: "bg-red-100 text-red-800",
   refunded: "bg-gray-100 text-gray-800",
+  abandoned: "bg-gray-100 text-gray-600",
+  expired: "bg-orange-100 text-orange-800",
 };
 
 function timeAgo(dateString: string): string {
@@ -446,6 +448,8 @@ export default function DonationsPage() {
             <option value="completed">Completed</option>
             <option value="pending">Pending</option>
             <option value="failed">Failed</option>
+            <option value="abandoned">Abandoned</option>
+            <option value="expired">Expired</option>
             <option value="refunded">Refunded</option>
             <option value="recurring">Recurring</option>
           </select>
