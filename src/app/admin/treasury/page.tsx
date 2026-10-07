@@ -63,7 +63,7 @@ function fmtSeconds(s: number): string {
 
 function typeBadge(type: string): { label: string; color: string } {
   switch (type) {
-    case "collection": return { label: "Collection", color: "bg-green-100 text-green-800" };
+    case "collection": return { label: "Collection", color: "bg-gray-100 text-gray-700" };
     case "payout":     return { label: "Payout",     color: "bg-blue-100 text-blue-800" };
     case "charge":     return { label: "Charge",     color: "bg-gray-100 text-gray-800" };
     case "refund":     return { label: "Refund",     color: "bg-orange-100 text-orange-800" };
