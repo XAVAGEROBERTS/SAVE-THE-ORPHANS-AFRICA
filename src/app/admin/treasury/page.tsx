@@ -61,15 +61,15 @@ function fmtSeconds(s: number): string {
   return `${m}m ${sec}s`;
 }
 
-function typeBadge(type: string): { label: string; color: string } {
+function typeLabel(type: string): string {
   switch (type) {
-    case "collection": return { label: "Collection", color: "bg-gray-100 text-gray-700" };
-    case "payout":     return { label: "Payout",     color: "bg-blue-100 text-blue-800" };
-    case "charge":     return { label: "Charge",     color: "bg-gray-100 text-gray-800" };
-    case "refund":     return { label: "Refund",     color: "bg-orange-100 text-orange-800" };
-    case "chargeback": return { label: "Chargeback", color: "bg-red-100 text-red-800" };
-    case "reversal":   return { label: "Reversal",   color: "bg-purple-100 text-purple-800" };
-    default:           return { label: type,         color: "bg-gray-100 text-gray-700" };
+    case "collection": return "Collection";
+    case "payout":     return "Payout";
+    case "charge":     return "Charge";
+    case "refund":     return "Refund";
+    case "chargeback": return "Chargeback";
+    case "reversal":   return "Reversal";
+    default:           return type;
   }
 }
 
@@ -301,7 +301,7 @@ export default function TreasuryPage() {
                 </thead>
                 <tbody className="divide-y divide-light">
                   {data.recent.map((t) => {
-                    const tb = typeBadge(t.type);
+                    const label = typeLabel(t.type);
                     return (
                       <tr key={t.id} className="hover:bg-light/50">
                         <td className="px-4 py-3 text-xs text-dark/80 max-w-[280px]">
@@ -323,8 +323,8 @@ export default function TreasuryPage() {
                           )}
                         </td>
                         <td className="px-4 py-3">
-                          <span className={`text-xs font-medium px-2 py-1 rounded-full ${tb.color}`}>
-                            {tb.label}
+                          <span className="text-xs text-dark/70">
+                            {label}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right font-semibold text-dark">
