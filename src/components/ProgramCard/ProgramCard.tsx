@@ -40,13 +40,6 @@ export function ProgramCard({ program }: ProgramCardProps) {
             <IconComponent className="w-16 h-16" style={{ color: program.color }} />
           </div>
         )}
-        <div
-          className="absolute inset-0 opacity-60"
-          style={{ background: `linear-gradient(to top, ${program.color}CC, transparent)` }}
-        />
-        <div className="absolute bottom-4 left-4 w-12 h-12 rounded-full bg-white flex items-center justify-center">
-          <IconComponent className="w-6 h-6" style={{ color: program.color }} />
-        </div>
       </div>
       <div className="p-6 flex flex-col flex-1">
         <h3 className="font-bold text-xl text-dark mb-3">{program.title}</h3>
