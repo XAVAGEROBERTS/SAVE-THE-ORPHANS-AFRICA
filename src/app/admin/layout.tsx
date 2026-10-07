@@ -40,6 +40,7 @@ const navItems = [
   { href: "/admin/subscribers", label: "Subscribers", icon: Mail },
   { href: "/admin/newsletters", label: "Newsletters", icon: Send },
   { href: "/admin/donations", label: "Donations", icon: DollarSign },
+  { href: "/admin/analytics", label: "Analytics", icon: TrendingUp },
   { href: "/admin/programs", label: "Programs", icon: BookOpen },
   { href: "/admin/stories", label: "Stories", icon: FileText },
   { href: "/admin/impact", label: "Impact Stats", icon: TrendingUp },
