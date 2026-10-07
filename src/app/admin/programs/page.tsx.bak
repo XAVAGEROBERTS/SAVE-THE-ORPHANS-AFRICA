@@ -13,6 +13,7 @@ interface Program {
   long_description: string;
   image_url: string;
   icon: string;
+  color: string;
   objectives: string[];
   impact_stats: { label: string; value: string }[];
   display_order: number;
@@ -26,6 +27,7 @@ const emptyProgram: Partial<Program> = {
   long_description: "",
   image_url: "",
   icon: "Star",
+  color: "#176B45",
   objectives: [],
   impact_stats: [],
   display_order: 0,
@@ -284,6 +286,17 @@ export default function ProgramsAdminPage() {
                       setEditing({ ...editing, icon: e.target.value })
                     }
                     placeholder="GraduationCap"
+                  />
+                </div>
+                <div>
+                  <label className="form-label">Color</label>
+                  <input
+                    className="form-input h-12"
+                    type="color"
+                    value={editing.color || "#176B45"}
+                    onChange={(e) =>
+                      setEditing({ ...editing, color: e.target.value })
+                    }
                   />
                 </div>
                 <div>
