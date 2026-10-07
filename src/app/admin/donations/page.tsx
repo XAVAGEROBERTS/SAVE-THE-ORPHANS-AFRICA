@@ -46,8 +46,8 @@ const statusColors: Record<string, string> = {
   expired: "bg-orange-100 text-orange-800",
 };
 
-function timeAgo(dateString: string): string {
-  const diff = Date.now() - new Date(dateString).getTime();
+function timeAgo(dateString: string, now: number = Date.now()): string {
+  const diff = now - new Date(dateString).getTime();
   const seconds = Math.floor(diff / 1000);
   const minutes = Math.floor(seconds / 60);
   const hours = Math.floor(minutes / 60);
@@ -92,9 +92,16 @@ export default function DonationsPage() {
   const [editing, setEditing] = useState<Donation | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [now, setNow] = useState(Date.now());
   const [isBulkWorking, setIsBulkWorking] = useState(false);
 
-  const load = useCallback(async () => {
+    // Tick every 30 seconds so "time ago" labels stay fresh without a refresh
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+
+const load = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/donations");
       const json = await res.json();
@@ -652,7 +659,7 @@ export default function DonationsPage() {
                     <td className="px-4 py-4 text-sm text-dark/60 whitespace-nowrap">
                       <div>{formatDateTime(d.created_at)}</div>
                       <div className="text-xs text-dark/40">
-                        {timeAgo(d.created_at)}
+                        {timeAgo(d.created_at, now)}
                       </div>
                     </td>
                     <td className="px-4 py-4 text-right">
