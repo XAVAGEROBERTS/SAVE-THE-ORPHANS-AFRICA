@@ -166,7 +166,7 @@ export function ShareButton({ title, url, description }: ShareButtonProps) {
           role="menu"
           className="
             fixed sm:absolute
-            inset-x-0 bottom-0 sm:inset-x-auto sm:bottom-full sm:right-0 sm:mb-2
+            inset-x-0 bottom-0 sm:inset-x-auto sm:top-full sm:right-0 sm:mt-2
             z-50
             w-full sm:w-64
             max-w-full sm:max-w-[calc(100vw-2rem)]
@@ -174,7 +174,7 @@ export function ShareButton({ title, url, description }: ShareButtonProps) {
             rounded-t-2xl sm:rounded-xl
             shadow-2xl border-t sm:border border-light
             overflow-hidden
-            animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-2
+            animate-in slide-in-from-top-2
             duration-200
           "
         >
