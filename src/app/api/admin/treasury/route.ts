@@ -117,7 +117,6 @@ export async function GET(req: Request) {
   });
 
   const isSuccessful = (s: string) => s === "successful" || s === "completed";
-  const isPending = (s: string) => s === "initiated" || s === "pending" || s === "processing" || s === "on_hold";
 
   const sum = (type: string, match: (s: string) => boolean) =>
     transactions
@@ -128,7 +127,6 @@ export async function GET(req: Request) {
     transactions.filter((t) => t.type === type && match(t.status)).length;
 
   const netCollections = sum("collection", isSuccessful);
-  const pendingCollections = sum("collection", isPending);
   const netRefunds = sum("refund", isSuccessful);
   const netWithdraws = sum("payout", isSuccessful);
   const netPayouts = netWithdraws;
@@ -191,7 +189,6 @@ export async function GET(req: Request) {
     kpis: {
       currentBalance,
       netCollections,
-      pendingCollections,
       netPayouts,
       netWithdraws,
       netCharges,
@@ -200,7 +197,6 @@ export async function GET(req: Request) {
     },
     counts: {
       collections: count("collection", isSuccessful),
-      pendingCollections: count("collection", isPending),
       payouts: count("payout", isSuccessful),
       refunds: count("refund", isSuccessful),
       charges: count("charge", isSuccessful),
