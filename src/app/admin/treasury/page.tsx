@@ -307,14 +307,14 @@ export default function TreasuryPage() {
                         <td className="px-4 py-3 text-xs text-dark/80 max-w-[280px]">
                           <div className="mb-1">
                             <div className="text-[9px] uppercase tracking-wider text-dark/40 font-semibold mb-0.5">
-                              Transaction
+                              Transaction ID
                             </div>
                             <div className="font-mono break-all">{t.reference}</div>
                           </div>
                           {t.merchantRef && (
                             <div>
                               <div className="text-[9px] uppercase tracking-wider text-dark/40 font-semibold mb-0.5">
-                                Merchant
+                                Merchant Reference
                               </div>
                               <div className="font-mono text-primary font-semibold break-all">
                                 {t.merchantRef}
