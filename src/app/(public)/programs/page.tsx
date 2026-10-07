@@ -41,7 +41,7 @@ export default async function ProgramsPage() {
             href="/donate"
             className="btn-secondary text-lg px-8 py-4 mt-6 inline-flex"
           >
-            Donate Now ff
+            Donate Now
           </Link>
         </div>
       </section>
