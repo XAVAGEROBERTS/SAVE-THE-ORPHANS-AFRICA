@@ -61,6 +61,16 @@ async function fetchAllTransactions(
   return all;
 }
 
+/**
+ * Try to extract a merchant reference (e.g. "SOAxxxx") from a transaction's
+ * tags. Nylon tags may include the merchant reference when set via metadata.
+ */
+function merchantRefFromTags(tags: string[] | undefined): string | null {
+  if (!tags) return null;
+  const match = tags.find((t) => t.startsWith("SOA") || t.startsWith("REC"));
+  return match || null;
+}
+
 export async function GET(req: Request) {
   const admin = await getCurrentAdmin();
   if (!admin) {
@@ -86,20 +96,28 @@ export async function GET(req: Request) {
   });
 
   const isSuccessful = (s: string) => s === "successful" || s === "completed";
+  const isPending = (s: string) => s === "initiated" || s === "pending" || s === "processing" || s === "on_hold";
 
-  const sum = (type: string) =>
+  const sum = (type: string, match: (s: string) => boolean) =>
     transactions
-      .filter((t) => t.type === type && isSuccessful(t.status))
+      .filter((t) => t.type === type && match(t.status))
       .reduce((s, t) => s + Number(t.amount || 0), 0);
 
-  const count = (type: string) =>
-    transactions.filter((t) => t.type === type && isSuccessful(t.status)).length;
+  const count = (type: string, match: (s: string) => boolean) =>
+    transactions.filter((t) => t.type === type && match(t.status)).length;
 
-  const netCollections = sum("collection");
-  const netRefunds = sum("refund");
-  const netCharges = sum("charge");
-  const netWithdraws = sum("payout");
-  const netPayouts = sum("payout");
+  const netCollections = sum("collection", isSuccessful);
+  const pendingCollections = sum("collection", isPending);
+  const netRefunds = sum("refund", isSuccessful);
+  const netWithdraws = sum("payout", isSuccessful);
+  const netPayouts = netWithdraws;
+
+  // Nylon doesn't emit "charge" transactions — fees are deducted at payout time.
+  // Estimate at 3% (matches Nylon's dashboard for our pricing tier).
+  // TODO: replace with actual fee data once Nylon exposes it.
+  const FEE_RATE = 0.03;
+  const realCharges = sum("charge", isSuccessful);
+  const netCharges = realCharges > 0 ? realCharges : netCollections * FEE_RATE;
 
   const currentBalance =
     netCollections - netWithdraws - netCharges - netRefunds;
@@ -126,11 +144,13 @@ export async function GET(req: Request) {
     .map((t) => ({
       id: t.id,
       reference: t.reference,
+      merchantRef: merchantRefFromTags(t.tags),
       amount: Number(t.amount),
       currency: t.currency,
       status: t.status,
       type: t.type,
       method: t.method,
+      tags: t.tags || [],
       createdAt: t.createdAt,
     }));
 
@@ -149,6 +169,7 @@ export async function GET(req: Request) {
     kpis: {
       currentBalance,
       netCollections,
+      pendingCollections,
       netPayouts,
       netWithdraws,
       netCharges,
@@ -156,10 +177,11 @@ export async function GET(req: Request) {
       avgProcessingSeconds,
     },
     counts: {
-      collections: count("collection"),
-      payouts: count("payout"),
-      refunds: count("refund"),
-      charges: count("charge"),
+      collections: count("collection", isSuccessful),
+      pendingCollections: count("collection", isPending),
+      payouts: count("payout", isSuccessful),
+      refunds: count("refund", isSuccessful),
+      charges: count("charge", isSuccessful),
     },
     recent,
     trend,

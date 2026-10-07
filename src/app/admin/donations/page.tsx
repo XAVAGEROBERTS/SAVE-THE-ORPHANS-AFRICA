@@ -605,7 +605,7 @@ const load = useCallback(async () => {
                       <div>{d.reference}</div>
                       {d.payment_reference && (
                         <div className="text-dark/40 mt-0.5">
-                          {d.payment_reference.slice(0, 18)}…
+                          {d.payment_reference}
                         </div>
                       )}
                     </td>

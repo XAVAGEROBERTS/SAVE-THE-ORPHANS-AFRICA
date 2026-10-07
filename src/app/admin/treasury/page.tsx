@@ -11,6 +11,7 @@ import {
   ArrowDownLeft,
   Percent,
   Clock,
+  Hourglass,
 } from "lucide-react";
 
 type Range = "7d" | "30d" | "90d" | "1y" | "all";
@@ -21,6 +22,7 @@ interface TreasuryData {
   kpis: {
     currentBalance: number;
     netCollections: number;
+    pendingCollections: number;
     netPayouts: number;
     netWithdraws: number;
     netCharges: number;
@@ -29,6 +31,7 @@ interface TreasuryData {
   };
   counts: {
     collections: number;
+    pendingCollections: number;
     payouts: number;
     refunds: number;
     charges: number;
@@ -36,11 +39,13 @@ interface TreasuryData {
   recent: {
     id: string;
     reference: string;
+    merchantRef: string | null;
     amount: number;
     currency: string;
     status: string;
     type: string;
     method: string | null;
+    tags: string[];
     createdAt: string;
   }[];
   trend: { day: string; total: number }[];
@@ -74,7 +79,10 @@ function statusBadge(status: string): string {
   switch (status) {
     case "successful":
     case "completed": return "bg-green-100 text-green-800";
-    case "pending":   return "bg-yellow-100 text-yellow-800";
+    case "initiated":
+    case "pending":
+    case "processing":
+    case "on_hold":   return "bg-yellow-100 text-yellow-800";
     case "failed":    return "bg-red-100 text-red-800";
     case "cancelled": return "bg-gray-100 text-gray-700";
     default:          return "bg-gray-100 text-gray-700";
@@ -204,6 +212,23 @@ export default function TreasuryPage() {
             </div>
 
             <div className="card p-5 flex items-start gap-4">
+              <div className="w-11 h-11 rounded-xl bg-yellow-100 flex items-center justify-center shrink-0">
+                <Hourglass className="w-5 h-5 text-yellow-700" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-dark/50 mb-1">
+                  Pending Collections
+                </p>
+                <p className="text-xl font-bold text-dark">
+                  {fmtMoney(data.kpis.pendingCollections, data.currency)}
+                </p>
+                <p className="text-xs text-dark/50 mt-1">
+                  {data.counts.pendingCollections} initiated
+                </p>
+              </div>
+            </div>
+
+            <div className="card p-5 flex items-start gap-4">
               <div className="w-11 h-11 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
                 <ArrowUpRight className="w-5 h-5 text-blue-700" />
               </div>
@@ -232,7 +257,9 @@ export default function TreasuryPage() {
                   {fmtMoney(data.kpis.netCharges, data.currency)}
                 </p>
                 <p className="text-xs text-dark/50 mt-1">
-                  {data.counts.charges} fees
+                  {data.counts.charges > 0
+                    ? `${data.counts.charges} fees`
+                    : "Estimated at 3%"}
                 </p>
               </div>
             </div>
@@ -270,29 +297,6 @@ export default function TreasuryPage() {
                 </p>
               </div>
             </div>
-
-            <div className="card p-5 flex items-start gap-4">
-              <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                <TrendingUp className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-dark/50 mb-1">
-                  Net Position
-                </p>
-                <p className="text-xl font-bold text-primary">
-                  {fmtMoney(
-                    data.kpis.netCollections -
-                      data.kpis.netWithdraws -
-                      data.kpis.netCharges -
-                      data.kpis.netRefunds,
-                    data.currency
-                  )}
-                </p>
-                <p className="text-xs text-dark/50 mt-1">
-                  Collections − withdraws − charges − refunds
-                </p>
-              </div>
-            </div>
           </div>
 
           <div className="card overflow-hidden">
@@ -320,7 +324,12 @@ export default function TreasuryPage() {
                     return (
                       <tr key={t.id} className="hover:bg-light/50">
                         <td className="px-4 py-3 font-mono text-xs text-dark/80">
-                          {t.reference}
+                          <div className="break-all">{t.reference}</div>
+                          {t.merchantRef && (
+                            <div className="text-[10px] text-primary font-semibold mt-0.5">
+                              {t.merchantRef}
+                            </div>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <span className={`text-xs font-medium px-2 py-1 rounded-full ${tb.color}`}>
@@ -338,7 +347,7 @@ export default function TreasuryPage() {
                         <td className="px-4 py-3 text-sm text-dark/70">
                           {t.method || "—"}
                         </td>
-                        <td className="px-4 py-3 text-sm text-dark/70">
+                        <td className="px-4 py-3 text-sm text-dark/70 whitespace-nowrap">
                           {new Date(t.createdAt).toLocaleString("en-US", {
                             month: "short",
                             day: "numeric",
