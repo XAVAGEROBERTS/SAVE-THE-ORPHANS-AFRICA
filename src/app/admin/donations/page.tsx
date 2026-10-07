@@ -33,6 +33,7 @@ interface Donation {
   preferred_method: string | null;
   gateway_status: string | null;
   payment_reference: string | null;
+  nylon_transaction_id: string | null;
   created_at: string;
   completed_at: string | null;
 }
@@ -601,11 +602,16 @@ const load = useCallback(async () => {
                         )}
                       </button>
                     </td>
-                    <td className="px-4 py-4 text-xs font-mono text-dark/70">
-                      <div>{d.reference}</div>
+                    <td className="px-4 py-4 text-xs font-mono text-dark/70 max-w-[280px]">
+                      <div className="break-all">{d.reference}</div>
                       {d.payment_reference && (
-                        <div className="text-dark/40 mt-0.5">
+                        <div className="text-dark/50 mt-0.5 break-all">
                           {d.payment_reference}
+                        </div>
+                      )}
+                      {d.nylon_transaction_id && (
+                        <div className="text-dark/35 mt-0.5 break-all text-[10px]">
+                          {d.nylon_transaction_id}
                         </div>
                       )}
                     </td>

@@ -153,6 +153,7 @@ export async function POST(req: NextRequest) {
         gateway_status: event || rawStatus || null,
         completed_at: isSuccess ? new Date().toISOString() : null,
         raw_gateway_response: body,
+        nylon_transaction_id: transactionId || null,
       })
       .eq("id", donation.id);
 

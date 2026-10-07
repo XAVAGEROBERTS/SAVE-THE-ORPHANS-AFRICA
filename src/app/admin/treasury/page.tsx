@@ -43,6 +43,7 @@ interface TreasuryData {
     amount: number;
     currency: string;
     status: string;
+    rawStatus?: string;
     type: string;
     method: string | null;
     tags: string[];
@@ -79,8 +80,8 @@ function statusBadge(status: string): string {
   switch (status) {
     case "successful":
     case "completed": return "bg-green-100 text-green-800";
-    case "initiated":
     case "pending":
+    case "initiated":
     case "processing":
     case "on_hold":   return "bg-yellow-100 text-yellow-800";
     case "failed":    return "bg-red-100 text-red-800";
@@ -343,6 +344,11 @@ export default function TreasuryPage() {
                           <span className={`text-xs font-medium px-2 py-1 rounded-full ${statusBadge(t.status)}`}>
                             {t.status}
                           </span>
+                          {t.rawStatus && t.rawStatus !== t.status && (
+                            <div className="text-[10px] text-dark/40 mt-1 font-mono">
+                              {t.rawStatus}
+                            </div>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-sm text-dark/70">
                           {t.method || "—"}

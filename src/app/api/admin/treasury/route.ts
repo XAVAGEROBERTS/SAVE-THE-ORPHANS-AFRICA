@@ -71,6 +71,27 @@ function merchantRefFromTags(tags: string[] | undefined): string | null {
   return match || null;
 }
 
+/**
+ * Map Nylon's status vocabulary to display-friendly names.
+ * Nylon uses "initiated" where merchants expect "pending".
+ */
+function normalizeStatus(raw: string): string {
+  switch (raw) {
+    case "initiated":
+    case "processing":
+    case "on_hold":
+      return "pending";
+    case "successful":
+      return "completed";
+    case "cancelled":
+      return "cancelled";
+    case "failed":
+      return "failed";
+    default:
+      return raw;
+  }
+}
+
 export async function GET(req: Request) {
   const admin = await getCurrentAdmin();
   if (!admin) {
@@ -147,7 +168,8 @@ export async function GET(req: Request) {
       merchantRef: merchantRefFromTags(t.tags),
       amount: Number(t.amount),
       currency: t.currency,
-      status: t.status,
+      status: normalizeStatus(t.status),
+      rawStatus: t.status,
       type: t.type,
       method: t.method,
       tags: t.tags || [],
