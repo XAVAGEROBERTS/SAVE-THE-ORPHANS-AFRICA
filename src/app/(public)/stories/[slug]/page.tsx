@@ -3,10 +3,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import Image from "next/image";
-import { ArrowLeft, Calendar, User, Share2, ArrowRight } from "lucide-react";
+import { ArrowLeft, Calendar, User, ArrowRight } from "lucide-react";
 import { getStories, getStoryBySlug } from "@/lib/supabase/queries";
 import { formatDate } from "@/utils/format";
 import { StoryCard } from "@/components/StoryCard/StoryCard";
+import { ShareButton } from "@/components/Share/ShareButton";
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
@@ -210,12 +211,7 @@ export default async function StoryDetailPage({ params }: Props) {
             <div className="mt-10 pt-6 border-t border-light flex items-center justify-between">
               <p className="text-sm text-dark/60">Share this story</p>
               <div className="flex gap-2">
-                <button
-                  className="w-10 h-10 rounded-full bg-light flex items-center justify-center hover:bg-primary hover:text-white transition-colors"
-                  aria-label="Share"
-                >
-                  <Share2 className="w-4 h-4" />
-                </button>
+                <ShareButton title={story.title} />
               </div>
             </div>
 
