@@ -11,6 +11,7 @@ import {
   Check,
   MessageCircle,
   Send,
+  X,
 } from "lucide-react";
 
 interface ShareButtonProps {
@@ -24,23 +25,25 @@ export function ShareButton({ title, url, description }: ShareButtonProps) {
   const [copied, setCopied] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Close on outside click
+  // Close on outside click (desktop)
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setOpen(false);
       }
     }
-    // Close on Escape
     function handleKey(e: KeyboardEvent) {
       if (e.key === "Escape") setOpen(false);
     }
     if (open) {
       document.addEventListener("mousedown", handleClick);
       document.addEventListener("keydown", handleKey);
+      // Prevent body scroll on mobile while menu is open
+      document.body.style.overflow = "hidden";
       return () => {
         document.removeEventListener("mousedown", handleClick);
         document.removeEventListener("keydown", handleKey);
+        document.body.style.overflow = "";
       };
     }
   }, [open]);
@@ -76,7 +79,6 @@ export function ShareButton({ title, url, description }: ShareButtonProps) {
       setCopied(kind);
       setTimeout(() => setCopied(null), 2000);
       if (kind === "instagram") {
-        // Keep the menu open a moment so the user sees the confirmation
         setTimeout(() => setOpen(false), 800);
       } else {
         setOpen(false);
@@ -85,6 +87,56 @@ export function ShareButton({ title, url, description }: ShareButtonProps) {
       window.prompt("Copy this link:", resolveUrl());
     }
   }
+
+  const ITEMS = [
+    {
+      key: "facebook",
+      label: "Facebook",
+      icon: <Facebook className="w-5 h-5 text-[#1877F2]" />,
+      action: () => openShare("facebook"),
+    },
+    {
+      key: "twitter",
+      label: "Twitter / X",
+      icon: <Twitter className="w-5 h-5 text-black" />,
+      action: () => openShare("twitter"),
+    },
+    {
+      key: "whatsapp",
+      label: "WhatsApp",
+      icon: <MessageCircle className="w-5 h-5 text-[#25D366]" />,
+      action: () => openShare("whatsapp"),
+    },
+    {
+      key: "telegram",
+      label: "Telegram",
+      icon: <Send className="w-5 h-5 text-[#229ED9]" />,
+      action: () => openShare("telegram"),
+    },
+    {
+      key: "linkedin",
+      label: "LinkedIn",
+      icon: <Linkedin className="w-5 h-5 text-[#0A66C2]" />,
+      action: () => openShare("linkedin"),
+    },
+    {
+      key: "instagram",
+      label: copied === "instagram" ? "Copied for Instagram ✓" : "Copy for Instagram",
+      icon: <Instagram className="w-5 h-5 text-[#DD2A7B]" />,
+      action: () => copyLink("instagram"),
+    },
+    {
+      key: "copy",
+      label: copied === "generic" ? "Copied!" : "Copy link",
+      icon:
+        copied === "generic" ? (
+          <Check className="w-5 h-5 text-green-600" />
+        ) : (
+          <Link2 className="w-5 h-5 text-primary" />
+        ),
+      action: () => copyLink("generic"),
+    },
+  ];
 
   return (
     <div ref={menuRef} className="relative inline-block">
@@ -99,91 +151,68 @@ export function ShareButton({ title, url, description }: ShareButtonProps) {
         <Share2 className="w-4 h-4" />
       </button>
 
+      {/* Mobile backdrop */}
+      {open && (
+        <div
+          className="fixed inset-0 bg-black/40 z-40 sm:hidden"
+          onClick={() => setOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Menu — bottom sheet on mobile, dropdown on desktop */}
       {open && (
         <div
           role="menu"
-          className="absolute right-0 bottom-full mb-2 z-50 w-56 bg-white rounded-xl shadow-2xl border border-light overflow-hidden"
+          className="
+            fixed sm:absolute
+            inset-x-0 bottom-0 sm:inset-x-auto sm:bottom-full sm:right-0 sm:mb-2
+            z-50
+            w-full sm:w-64
+            max-w-full sm:max-w-[calc(100vw-2rem)]
+            bg-white
+            rounded-t-2xl sm:rounded-xl
+            shadow-2xl border-t sm:border border-light
+            overflow-hidden
+            animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-2
+            duration-200
+          "
         >
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => openShare("facebook")}
-            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-dark hover:bg-light transition-colors"
-          >
-            <Facebook className="w-4 h-4 text-[#1877F2]" />
-            Facebook
-          </button>
+          {/* Header (mobile sheet) */}
+          <div className="sm:hidden flex items-center justify-between px-5 py-4 border-b border-light">
+            <span className="font-semibold text-dark text-sm">Share this story</span>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              aria-label="Close share menu"
+              className="w-8 h-8 rounded-full flex items-center justify-center text-dark/60 hover:bg-light transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
 
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => openShare("twitter")}
-            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-dark hover:bg-light transition-colors"
-          >
-            <Twitter className="w-4 h-4 text-black" />
-            Twitter / X
-          </button>
+          {/* Sheet handle (mobile only, small touch) */}
+          <div className="sm:hidden flex justify-center pt-3 pb-1">
+            <div className="w-10 h-1 rounded-full bg-dark/15" />
+          </div>
 
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => openShare("whatsapp")}
-            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-dark hover:bg-light transition-colors"
-          >
-            <MessageCircle className="w-4 h-4 text-[#25D366]" />
-            WhatsApp
-          </button>
+          <div className="py-2 sm:py-1">
+            {ITEMS.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                role="menuitem"
+                onClick={item.action}
+                className="w-full flex items-center gap-4 px-5 sm:px-4 py-4 sm:py-3 text-base sm:text-sm text-dark hover:bg-light active:bg-light transition-colors"
+              >
+                {item.icon}
+                <span className="font-medium sm:font-normal">{item.label}</span>
+              </button>
+            ))}
+          </div>
 
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => openShare("telegram")}
-            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-dark hover:bg-light transition-colors"
-          >
-            <Send className="w-4 h-4 text-[#229ED9]" />
-            Telegram
-          </button>
-
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => openShare("linkedin")}
-            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-dark hover:bg-light transition-colors"
-          >
-            <Linkedin className="w-4 h-4 text-[#0A66C2]" />
-            LinkedIn
-          </button>
-
-          <div className="h-px bg-light" />
-
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => copyLink("instagram")}
-            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-dark hover:bg-light transition-colors"
-          >
-            <Instagram className="w-4 h-4 text-[#DD2A7B]" />
-            {copied === "instagram" ? "Copied for Instagram ✓" : "Copy for Instagram"}
-          </button>
-
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => copyLink("generic")}
-            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-dark hover:bg-light transition-colors"
-          >
-            {copied === "generic" ? (
-              <>
-                <Check className="w-4 h-4 text-green-600" />
-                Copied!
-              </>
-            ) : (
-              <>
-                <Link2 className="w-4 h-4 text-primary" />
-                Copy link
-              </>
-            )}
-          </button>
+          {/* Safe area padding (mobile) */}
+          <div className="sm:hidden h-4" />
         </div>
       )}
     </div>
