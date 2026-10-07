@@ -11,7 +11,6 @@ import {
   ArrowDownLeft,
   Percent,
   Clock,
-  Hourglass,
 } from "lucide-react";
 
 type Range = "7d" | "30d" | "90d" | "1y" | "all";
@@ -22,7 +21,6 @@ interface TreasuryData {
   kpis: {
     currentBalance: number;
     netCollections: number;
-    pendingCollections: number;
     netPayouts: number;
     netWithdraws: number;
     netCharges: number;
@@ -31,7 +29,6 @@ interface TreasuryData {
   };
   counts: {
     collections: number;
-    pendingCollections: number;
     payouts: number;
     refunds: number;
     charges: number;
@@ -208,23 +205,6 @@ export default function TreasuryPage() {
                 </p>
                 <p className="text-xs text-dark/50 mt-1">
                   {data.counts.collections} successful
-                </p>
-              </div>
-            </div>
-
-            <div className="card p-5 flex items-start gap-4">
-              <div className="w-11 h-11 rounded-xl bg-yellow-100 flex items-center justify-center shrink-0">
-                <Hourglass className="w-5 h-5 text-yellow-700" />
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-dark/50 mb-1">
-                  Pending Collections
-                </p>
-                <p className="text-xl font-bold text-dark">
-                  {fmtMoney(data.kpis.pendingCollections, data.currency)}
-                </p>
-                <p className="text-xs text-dark/50 mt-1">
-                  {data.counts.pendingCollections} initiated
                 </p>
               </div>
             </div>
