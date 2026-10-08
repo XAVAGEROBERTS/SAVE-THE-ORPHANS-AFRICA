@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentAdmin } from "@/lib/admin/auth";
-import { sendEmail } from "@/lib/email/resend";
+import { sendEmail, NEWSLETTER_FROM_EMAIL } from "@/lib/email/resend";
 import { wrapEmail } from "@/lib/email/templates";
 
 export async function GET() {
@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
         unsubscribeUrl,
       });
 
-      await sendEmail({ to: sub.email, subject, html });
+      await sendEmail({ from: NEWSLETTER_FROM_EMAIL, to: sub.email, subject, html });
       sent++;
     } catch (err) {
       console.error(`Failed to send to ${sub.email}:`, err);

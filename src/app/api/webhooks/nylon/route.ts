@@ -197,7 +197,7 @@ export async function POST(req: NextRequest) {
         );
       } else {
         try {
-          const { sendEmail, notifyAdmin } = await import("@/lib/email/resend");
+          const { sendEmail, notifyAdmin, DONATIONS_FROM_EMAIL } = await import("@/lib/email/resend");
           const { donationReceiptEmail } = await import("@/lib/email/templates");
 
           const html = donationReceiptEmail({
@@ -216,6 +216,7 @@ export async function POST(req: NextRequest) {
 
           // Send to donor
           await sendEmail({
+            from: DONATIONS_FROM_EMAIL,
             to: donation.donor_email.trim(),
             subject: `Donation Receipt — ${donation.reference}`,
             html,

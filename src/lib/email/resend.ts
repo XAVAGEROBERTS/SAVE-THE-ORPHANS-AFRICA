@@ -11,9 +11,20 @@ function getResend(): Resend {
   return _resend;
 }
 
+// Donation receipts, refund notices
+export const DONATIONS_FROM_EMAIL =
+  process.env.RESEND_DONATIONS_FROM_EMAIL ||
+  "Save the Orphans Africa <donations@savetheorphansafrica.org>";
+
+// Newsletter blasts to subscribers
+export const NEWSLETTER_FROM_EMAIL =
+  process.env.RESEND_NEWSLETTER_FROM_EMAIL ||
+  "Save The Orphans Africa <news@savetheorphansafrica.org>";
+
+// Default — admin notifications, welcome emails, contact confirmations
 export const FROM_EMAIL =
   process.env.RESEND_FROM_EMAIL ||
-  "Save the Orphans Africa <onboarding@resend.dev>";
+  "Save the Orphans Africa <info@savetheorphansafrica.org>";
 
 function clean(value: string | string[]): string | string[] {
   if (Array.isArray(value)) {
@@ -27,16 +38,18 @@ export async function sendEmail({
   subject,
   html,
   text,
+  from,
 }: {
   to: string | string[];
   subject: string;
   html: string;
   text?: string;
+  from?: string;
 }) {
   const resend = getResend();
 
   const { data, error } = await resend.emails.send({
-    from: FROM_EMAIL,
+    from: from || FROM_EMAIL,
     to: clean(to),
     subject: clean(subject) as string,
     html,
