@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ||
-  "https://save-the-orphans-africa.vercel.app";
+  "https://savetheorphansafrica.org";
 
 function stripHeaderChars(input: string): string {
   return String(input).replace(/[\r\n\t]/g, " ").slice(0, 200);

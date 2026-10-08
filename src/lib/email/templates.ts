@@ -4,7 +4,7 @@ const LOGO_URL =
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ||
-  "https://save-the-orphans-africa.vercel.app";
+  "https://savetheorphansafrica.org";
 
 // =====================================================================
 // BASE WRAPPER

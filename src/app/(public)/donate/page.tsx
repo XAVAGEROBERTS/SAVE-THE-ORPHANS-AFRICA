@@ -5,7 +5,7 @@ import { Shield, Heart, Users } from "lucide-react";
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
-  "https://save-the-orphans-africa.vercel.app";
+  "https://savetheorphansafrica.org";
 
 export const metadata: Metadata = {
   title: "Donate",

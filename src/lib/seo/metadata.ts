@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ||
-  "https://save-the-orphans-africa.vercel.app";
+  "https://savetheorphansafrica.org";
 const SITE_NAME = "Save the Orphans Africa";
 const DEFAULT_DESCRIPTION =
   "Providing vulnerable children with care, education, protection, healthcare, and opportunities for a brighter future.";

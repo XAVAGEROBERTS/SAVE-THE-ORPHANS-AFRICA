@@ -26,7 +26,7 @@ export const revalidate = 60;
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
-  "https://save-the-orphans-africa.vercel.app";
+  "https://savetheorphansafrica.org";
 
 const SITE_NAME = "Save the Orphans Africa";
 

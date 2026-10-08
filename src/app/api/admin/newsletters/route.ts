@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No active subscribers" }, { status: 400 });
   }
 
-  const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://save-the-orphans-africa.vercel.app";
+  const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://savetheorphansafrica.org";
 
   let sent = 0;
   let failed = 0;

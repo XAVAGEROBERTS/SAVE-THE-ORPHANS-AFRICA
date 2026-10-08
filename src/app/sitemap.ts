@@ -3,7 +3,7 @@ import { getStories, getPrograms } from "@/lib/supabase/queries";
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
-  "https://save-the-orphans-africa.vercel.app";
+  "https://savetheorphansafrica.org";
 
 // Static routes — keep in sync with your actual /(public) pages
 const STATIC_ROUTES: Array<{
