@@ -66,9 +66,6 @@ function gatewayLabel(d: Donation): string {
     if (d.parent_reference) return "Nylon Pay · Recurring";
     return "Nylon Pay";
   }
-  if (d.payment_method === "pesapal" || d.reference?.includes("PESP")) {
-    return "Pesapal";
-  }
   return "—";
 }
 
@@ -77,9 +74,6 @@ function methodLabel(d: Donation): string {
     if (d.preferred_method === "card") return "Card";
     if (d.preferred_method === "mobile_money") return "Mobile Money";
     return "Mobile Money";
-  }
-  if (d.payment_method === "pesapal") {
-    return d.preferred_method === "card" ? "Card" : "Pesapal";
   }
   return d.payment_method || d.preferred_method || "—";
 }
