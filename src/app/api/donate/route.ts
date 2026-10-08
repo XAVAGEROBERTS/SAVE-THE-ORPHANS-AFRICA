@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createInvoice } from "@/lib/nylonpay";
-
-const UGX_PER_USD = Number(process.env.UGX_PER_USD || 3700);
+import { usdToUgx } from "@/lib/exchange-rate";
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,10 +19,11 @@ export async function POST(req: NextRequest) {
     }
 
     const amountUsd = Number(amount);
-    const amountUgx = Math.round(amountUsd * UGX_PER_USD);
+    const { amount: amountUgx, rate: ugxRate, source: rateSource } = await usdToUgx(amountUsd);
+    console.log(`[donate] USD ${amountUsd} → UGX ${amountUgx} (rate ${ugxRate}, ${rateSource})`);
 
     if (amountUgx < 500) {
-      const minUsd = (500 / UGX_PER_USD).toFixed(2);
+      const minUsd = (500 / ugxRate).toFixed(2);
       return NextResponse.json(
         { error: `Minimum donation is about $${minUsd} (500 UGX)` },
         { status: 400 }
