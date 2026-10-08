@@ -1,9 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import { cn } from "@/utils/cn";
-import { createClient } from "@/lib/supabase/client";
+import { useRealtimeTable } from "@/hooks/useRealtimeTable";
+
+interface GalleryRow {
+  id: string;
+  image_url: string;
+  alt_text: string | null;
+  category: string | null;
+  is_published: boolean;
+  display_order: number | null;
+}
 
 interface GalleryImage {
   id: string;
@@ -23,117 +32,119 @@ const defaultCategories = [
 ];
 
 export function Gallery() {
-  const [images, setImages] = useState<GalleryImage[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("All");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function load() {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("gallery_images")
-        .select("*")
-        .eq("is_published", true)
-        .order("display_order", { ascending: true });
+  const { data: rows, isLoading } = useRealtimeTable<GalleryRow>({
+    table: "gallery_images",
+    orderBy: { column: "display_order", ascending: true },
+    filter: { column: "is_published", value: true },
+  });
 
-      if (!error && data) {
-        setImages(
-          data.map((row) => ({
-            id: row.id,
-            src: row.image_url,
-            alt: row.alt_text,
-            category: row.category,
-          }))
-        );
-      }
-      setIsLoading(false);
-    }
-    load();
-  }, []);
+  // Client-side filter for realtime inserts/updates that ignore our filter
+  const images: GalleryImage[] = (rows || [])
+    .filter((row) => row.is_published !== false)
+    .map((row) => ({
+      id: row.id,
+      src: row.image_url,
+      alt: row.alt_text || "",
+      category: row.category || "Uncategorized",
+    }));
 
-  const categories = ["All", ...Array.from(new Set(images.map((i) => i.category)))];
+  const categories = [
+    "All",
+    ...Array.from(new Set(images.map((i) => i.category))),
+  ];
 
   const filtered =
     activeCategory === "All"
       ? images
       : images.filter((img) => img.category === activeCategory);
 
-  const selectedImageData = images.find((i) => i.id === selectedImage);
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {[...Array(8)].map((_, i) => (
+          <div
+            key={i}
+            className="aspect-square bg-light animate-pulse rounded-lg"
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (images.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-dark/60">No gallery images yet.</p>
+      </div>
+    );
+  }
 
   return (
-    <div>
-      {isLoading ? (
-        <p className="text-center text-dark/60 py-12">Loading gallery...</p>
-      ) : images.length === 0 ? (
-        <p className="text-center text-dark/60 py-12">
-          No images in the gallery yet. Check back soon!
-        </p>
-      ) : (
-        <>
-          <div className="flex flex-wrap justify-center gap-2 mb-8">
-            {categories.map((c) => (
-              <button
-                key={c}
-                onClick={() => setActiveCategory(c)}
-                className={cn(
-                  "px-4 py-2 rounded-full text-sm font-semibold transition-all",
-                  activeCategory === c
-                    ? "bg-primary text-white"
-                    : "bg-light text-dark/70 hover:bg-primary/10 hover:text-primary"
-                )}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
+    <>
+      {/* Category filter */}
+      <div className="flex flex-wrap gap-2 mb-8">
+        {categories.map((cat) => (
+          <button
+            key={cat}
+            onClick={() => setActiveCategory(cat)}
+            className={cn(
+              "px-4 py-2 rounded-full text-sm font-medium transition-colors",
+              activeCategory === cat
+                ? "bg-primary text-white"
+                : "bg-light text-dark hover:bg-primary/10"
+            )}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filtered.map((image) => (
-              <button
-                key={image.id}
-                onClick={() => setSelectedImage(image.id)}
-                className="relative aspect-[4/3] rounded-xl overflow-hidden group"
-              >
-                <Image
-                  src={image.src}
-                  alt={image.alt}
-                  fill
-                  loading="lazy"
-                  className="object-cover group-hover:scale-105 transition-transform duration-500"
-                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                  unoptimized
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              </button>
-            ))}
-          </div>
-        </>
-      )}
+      {/* Image grid */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {filtered.map((img) => (
+          <button
+            key={img.id}
+            onClick={() => setSelectedImage(img.src)}
+            className="relative aspect-square rounded-lg overflow-hidden group cursor-pointer"
+          >
+            <Image
+              src={img.src}
+              alt={img.alt}
+              fill
+              sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+              className="object-cover group-hover:scale-105 transition-transform duration-300"
+            />
+          </button>
+        ))}
+      </div>
 
-      {selectedImageData && (
+      {/* Lightbox */}
+      {selectedImage && (
         <div
           className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
           onClick={() => setSelectedImage(null)}
         >
           <button
-            className="absolute top-4 right-4 text-white p-2 hover:bg-white/10 rounded-full text-2xl"
+            onClick={() => setSelectedImage(null)}
+            className="absolute top-4 right-4 p-2 text-white hover:bg-white/10 rounded-lg"
             aria-label="Close"
           >
             ✕
           </button>
-          <div className="relative max-w-5xl w-full aspect-[4/3]">
+          <div className="relative max-w-5xl max-h-[90vh] w-full h-full">
             <Image
-              src={selectedImageData.src}
-              alt={selectedImageData.alt}
+              src={selectedImage}
+              alt=""
               fill
+              sizes="90vw"
               className="object-contain"
-              sizes="100vw"
-              unoptimized
             />
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
