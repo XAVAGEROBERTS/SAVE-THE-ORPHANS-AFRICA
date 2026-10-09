@@ -1,8 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-// Inactivity window in seconds. 28800 = 8 hours.
-// Change this value to make the timeout stricter or looser.
+// Inactivity window in seconds. 300 = 5 minutes.
 const INACTIVITY_TIMEOUT_SECONDS = 300;
 
 export async function middleware(request: NextRequest) {
@@ -54,10 +53,19 @@ export async function middleware(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  if (pathname.startsWith("/admin") && pathname !== "/admin/login") {
+  // If user is on the login page, always allow them to stay and log in.
+  // Clear any stale inactivity cookie so the next session starts fresh.
+  if (pathname === "/admin/login") {
+    response.cookies.delete("admin_last_active");
+    return response;
+  }
+
+  // All other /admin routes: enforce auth + admin role + timeout
+  if (pathname.startsWith("/admin")) {
     if (!user) {
       const url = request.nextUrl.clone();
       url.pathname = "/admin/login";
+      url.search = "";
       return NextResponse.redirect(url);
     }
 
@@ -71,11 +79,13 @@ export async function middleware(request: NextRequest) {
       await supabase.auth.signOut();
       const url = request.nextUrl.clone();
       url.pathname = "/admin/login";
-      url.searchParams.set("error", "not_admin");
-      return NextResponse.redirect(url);
+      url.search = "";
+      const redirect = NextResponse.redirect(url);
+      redirect.cookies.delete("admin_last_active");
+      return redirect;
     }
 
-    // --- INACTIVITY TIMEOUT ---
+    // Inactivity check
     const lastActive = request.cookies.get("admin_last_active")?.value;
     const now = Date.now();
 
@@ -88,10 +98,14 @@ export async function middleware(request: NextRequest) {
         timeSinceLastActive > INACTIVITY_TIMEOUT_SECONDS
       ) {
         await supabase.auth.signOut();
+
         const url = request.nextUrl.clone();
         url.pathname = "/admin/login";
-        url.searchParams.set("error", "session_expired");
-        return NextResponse.redirect(url);
+        url.search = "";
+
+        const redirect = NextResponse.redirect(url);
+        redirect.cookies.delete("admin_last_active");
+        return redirect;
       }
     }
 
@@ -102,12 +116,6 @@ export async function middleware(request: NextRequest) {
       sameSite: "lax",
       maxAge: 60 * 60 * 24 * 30,
     });
-  }
-
-  if (pathname === "/admin/login" && user) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/admin";
-    return NextResponse.redirect(url);
   }
 
   return response;

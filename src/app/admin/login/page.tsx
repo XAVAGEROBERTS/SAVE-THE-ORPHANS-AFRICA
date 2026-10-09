@@ -1,36 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Heart, AlertCircle, LogIn, Eye, EyeOff, Clock } from "lucide-react";
+import { useState } from "react";
+import { Heart, AlertCircle, LogIn, Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { logClientActivity } from "@/lib/admin/client-activity";
 
 export default function AdminLoginPage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const sessionExpired = searchParams.get("error") === "session_expired";
-  const notAdmin = searchParams.get("error") === "not_admin";
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    if (sessionExpired) {
-      setNotice("Your session expired due to inactivity. Please log in again.");
-    } else if (notAdmin) {
-      setNotice("Your account is not authorized for admin access.");
-    }
-  }, [sessionExpired, notAdmin]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setNotice(null);
     setIsLoading(true);
 
     try {
@@ -85,8 +69,8 @@ export default function AdminLoginPage() {
         // Silent — client-side already logged it
       }
 
-      router.push("/admin");
-      router.refresh();
+      // Full reload — bypasses any cached redirect from previous session
+      window.location.href = "/admin";
     } catch (err: any) {
       setError(err?.message || "Unexpected error");
       setIsLoading(false);
@@ -105,13 +89,6 @@ export default function AdminLoginPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="card p-8 space-y-5">
-          {notice && (
-            <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 text-amber-900 p-4 rounded-lg">
-              <Clock className="w-5 h-5 shrink-0 mt-0.5" />
-              <p className="text-sm">{notice}</p>
-            </div>
-          )}
-
           {error && (
             <div className="flex items-start gap-3 bg-red-50 border border-red-200 text-red-800 p-4 rounded-lg">
               <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
