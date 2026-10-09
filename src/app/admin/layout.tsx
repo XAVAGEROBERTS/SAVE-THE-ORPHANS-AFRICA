@@ -28,30 +28,39 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { logClientActivity } from "@/lib/admin/client-activity";
+import { useAdminNotifications } from "@/hooks/useAdminNotifications";
 import { cn } from "@/utils/cn";
 
 const LOGO_URL =
   process.env.NEXT_PUBLIC_SITE_LOGO_URL ||
   "https://mkzqskurodstcmzlevte.supabase.co/storage/v1/object/public/site-images/logo.png";
 
-const navItems = [
-  { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin/messages", label: "Messages", icon: MessageSquare },
-  { href: "/admin/volunteers", label: "Volunteers", icon: Users },
-  { href: "/admin/subscribers", label: "Subscribers", icon: Mail },
-  { href: "/admin/newsletters", label: "Newsletters", icon: Send },
-  { href: "/admin/donations", label: "Donations", icon: DollarSign },
-  { href: "/admin/treasury", label: "Treasury", icon: Wallet },
-  { href: "/admin/analytics", label: "Analytics", icon: TrendingUp },
-  { href: "/admin/programs", label: "Programs", icon: BookOpen },
-  { href: "/admin/stories", label: "Stories", icon: FileText },
-  { href: "/admin/impact", label: "Impact Stats", icon: TrendingUp },
-  { href: "/admin/testimonials", label: "Testimonials", icon: Quote },
-  { href: "/admin/gallery", label: "Gallery", icon: ImageIcon },
-  { href: "/admin/team", label: "Team", icon: UserCog },
-  { href: "/admin/users", label: "Admin Users", icon: Shield },
-  { href: "/admin/activity", label: "Activity Log", icon: Activity },
-  { href: "/admin/settings", label: "Settings", icon: Settings },
+// Badge keys map to the counts returned by /api/admin/notification-counts
+type BadgeKey = "messages" | "volunteers" | "donations" | "testimonials" | null;
+
+const navItems: Array<{
+  href: string;
+  label: string;
+  icon: any;
+  badge: BadgeKey;
+}> = [
+  { href: "/admin", label: "Dashboard", icon: LayoutDashboard, badge: null },
+  { href: "/admin/messages", label: "Messages", icon: MessageSquare, badge: "messages" },
+  { href: "/admin/volunteers", label: "Volunteers", icon: Users, badge: "volunteers" },
+  { href: "/admin/subscribers", label: "Subscribers", icon: Mail, badge: null },
+  { href: "/admin/newsletters", label: "Newsletters", icon: Send, badge: null },
+  { href: "/admin/donations", label: "Donations", icon: DollarSign, badge: "donations" },
+  { href: "/admin/treasury", label: "Treasury", icon: Wallet, badge: null },
+  { href: "/admin/analytics", label: "Analytics", icon: TrendingUp, badge: null },
+  { href: "/admin/programs", label: "Programs", icon: BookOpen, badge: null },
+  { href: "/admin/stories", label: "Stories", icon: FileText, badge: null },
+  { href: "/admin/impact", label: "Impact Stats", icon: TrendingUp, badge: null },
+  { href: "/admin/testimonials", label: "Testimonials", icon: Quote, badge: "testimonials" },
+  { href: "/admin/gallery", label: "Gallery", icon: ImageIcon, badge: null },
+  { href: "/admin/team", label: "Team", icon: UserCog, badge: null },
+  { href: "/admin/users", label: "Admin Users", icon: Shield, badge: null },
+  { href: "/admin/activity", label: "Activity Log", icon: Activity, badge: null },
+  { href: "/admin/settings", label: "Settings", icon: Settings, badge: null },
 ];
 
 export default function AdminLayout({
@@ -63,6 +72,8 @@ export default function AdminLayout({
   const router = useRouter();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [userEmail, setUserEmail] = useState("");
+
+  const { counts, markSeen } = useAdminNotifications();
 
   useEffect(() => {
     async function loadUser() {
@@ -79,7 +90,6 @@ export default function AdminLayout({
     setIsMobileOpen(false);
   }, [pathname]);
 
-  // Lock body scroll while the mobile drawer is open
   useEffect(() => {
     if (isMobileOpen) {
       document.body.style.overflow = "hidden";
@@ -126,54 +136,48 @@ export default function AdminLayout({
     return <>{children}</>;
   }
 
+  const totalBadges = Object.values(counts).reduce((a, b) => a + b, 0);
+
   return (
     <div className="min-h-screen bg-light">
-      {/* Mobile header */}
       <header className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-[#0B3D2E] text-white h-14 flex items-center justify-between px-4 shadow-lg">
         <button
           onClick={() => setIsMobileOpen(!isMobileOpen)}
           aria-label={isMobileOpen ? "Close menu" : "Open menu"}
           aria-expanded={isMobileOpen}
-          className="w-10 h-10 rounded-lg flex items-center justify-center hover:bg-white/10 transition-colors"
+          className="w-10 h-10 rounded-lg flex items-center justify-center hover:bg-white/10 transition-colors relative"
         >
-          {isMobileOpen ? (
-            <X className="w-6 h-6" />
-          ) : (
-            <Menu className="w-6 h-6" />
+          {isMobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          {!isMobileOpen && totalBadges > 0 && (
+            <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-[#0B3D2E]" />
           )}
         </button>
         <span className="font-bold text-base">Admin</span>
         <div className="w-10" />
       </header>
 
-      {/* Mobile overlay */}
       {isMobileOpen && (
         <div
           className="lg:hidden fixed inset-0 z-30 bg-black/60 backdrop-blur-sm"
-          onClick={() => setIsMobileOpen(false)}
+          onClick={() => { setIsMobileOpen(false); if (item.badge) markSeen(item.badge); }}
           aria-hidden="true"
         />
       )}
 
-      {/* Sidebar */}
       <aside
         className={cn(
           "admin-no-scrollbar fixed inset-y-0 left-0 z-40 bg-[#0B3D2E] text-white transform transition-transform duration-300 ease-in-out overflow-y-auto",
-          // On mobile: cap at 80vw so it never exceeds the viewport
           "w-64 max-w-[80vw]",
-          // Desktop: always visible
           "lg:translate-x-0 lg:w-64 lg:max-w-none",
-          // Mobile: slide in/out
           isMobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
         <div className="flex flex-col min-h-full">
-          {/* Logo / brand */}
           <div className="p-5 border-b border-white/10">
             <Link
               href="/admin"
               className="flex items-center gap-3 min-w-0"
-              onClick={() => setIsMobileOpen(false)}
+              onClick={() => { setIsMobileOpen(false); if (item.badge) markSeen(item.badge); }}
             >
               <div className="w-11 h-11 rounded-full overflow-hidden relative bg-gold flex items-center justify-center shrink-0">
                 <Image
@@ -196,18 +200,23 @@ export default function AdminLayout({
             </Link>
           </div>
 
-          {/* Nav items */}
           <nav className="flex-1 p-3 space-y-1">
             {navItems.map((item) => {
               const isActive =
                 item.href === "/admin"
                   ? pathname === "/admin"
                   : pathname.startsWith(item.href);
+
+              const badgeValue =
+                item.badge && counts[item.badge] > 0
+                  ? counts[item.badge]
+                  : null;
+
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  onClick={() => setIsMobileOpen(false)}
+                  onClick={() => { setIsMobileOpen(false); if (item.badge) markSeen(item.badge); }}
                   className={cn(
                     "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                     isActive
@@ -216,13 +225,24 @@ export default function AdminLayout({
                   )}
                 >
                   <item.icon className="w-5 h-5 shrink-0" />
-                  <span className="truncate">{item.label}</span>
+                  <span className="truncate flex-1">{item.label}</span>
+                  {badgeValue !== null && (
+                    <span
+                      className={cn(
+                        "shrink-0 min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-bold flex items-center justify-center",
+                        isActive
+                          ? "bg-[#0B3D2E] text-gold"
+                          : "bg-red-500 text-white"
+                      )}
+                    >
+                      {badgeValue > 99 ? "99+" : badgeValue}
+                    </span>
+                  )}
                 </Link>
               );
             })}
           </nav>
 
-          {/* Footer actions */}
           <div className="p-3 border-t border-white/10 space-y-1">
             <Link
               href="/"
@@ -235,7 +255,7 @@ export default function AdminLayout({
 
             <Link
               href="/admin/settings"
-              onClick={() => setIsMobileOpen(false)}
+              onClick={() => { setIsMobileOpen(false); if (item.badge) markSeen(item.badge); }}
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/70 hover:bg-white/10 transition-colors"
             >
               <Settings className="w-4 h-4 shrink-0" />
@@ -253,7 +273,6 @@ export default function AdminLayout({
         </div>
       </aside>
 
-      {/* Main content */}
       <main className="lg:pl-64 pt-14 lg:pt-0">
         <div className="p-4 md:p-8">{children}</div>
       </main>
