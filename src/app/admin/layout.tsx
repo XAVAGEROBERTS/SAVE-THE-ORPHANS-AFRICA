@@ -159,7 +159,7 @@ export default function AdminLayout({
       {isMobileOpen && (
         <div
           className="lg:hidden fixed inset-0 z-30 bg-black/60 backdrop-blur-sm"
-          onClick={() => { setIsMobileOpen(false); if (item.badge) markSeen(item.badge); }}
+          onClick={() => setIsMobileOpen(false)}
           aria-hidden="true"
         />
       )}
@@ -177,7 +177,7 @@ export default function AdminLayout({
             <Link
               href="/admin"
               className="flex items-center gap-3 min-w-0"
-              onClick={() => { setIsMobileOpen(false); if (item.badge) markSeen(item.badge); }}
+              onClick={() => setIsMobileOpen(false)}
             >
               <div className="w-11 h-11 rounded-full overflow-hidden relative bg-gold flex items-center justify-center shrink-0">
                 <Image
@@ -255,7 +255,7 @@ export default function AdminLayout({
 
             <Link
               href="/admin/settings"
-              onClick={() => { setIsMobileOpen(false); if (item.badge) markSeen(item.badge); }}
+              onClick={() => setIsMobileOpen(false)}
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/70 hover:bg-white/10 transition-colors"
             >
               <Settings className="w-4 h-4 shrink-0" />
