@@ -75,7 +75,7 @@ export function Navbar() {
       <header
         className={cn(
           "lg:hidden fixed top-[42px] left-0 right-0 z-50 bg-white border-b border-black/5 shadow-sm transition-transform duration-300",
-          shouldHide ? "-translate-y-[60px]" : "translate-y-0"
+          shouldHide ? "-translate-y-[calc(100%+45px)]" : "translate-y-0"
         )}
       >
         <div className="flex items-center justify-between h-14 px-4">
