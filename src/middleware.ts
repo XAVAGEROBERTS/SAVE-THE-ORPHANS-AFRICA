@@ -3,7 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 
 // Inactivity window in seconds. 28800 = 8 hours.
 // Change this value to make the timeout stricter or looser.
-const INACTIVITY_TIMEOUT_SECONDS = 28800;
+const INACTIVITY_TIMEOUT_SECONDS = 30;
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
