@@ -26,7 +26,7 @@ const securityHeaders = [
       "img-src 'self' data: blob: https:",
       "font-src 'self' data: https://fonts.gstatic.com",
       "connect-src 'self' https://plausible.io https://*.supabase.co wss://*.supabase.co https://api.resend.com https://api.nylonpay.com",
-      "frame-src 'self' https://js.stripe.com https://checkout.flutterwave.com",
+      "frame-src 'self' https://js.stripe.com https://checkout.flutterwave.com https://www.google.com https://maps.google.com",
       "frame-ancestors 'self'",
       "base-uri 'self'",
       "form-action 'self'",
