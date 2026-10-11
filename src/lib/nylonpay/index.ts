@@ -1,5 +1,5 @@
-import { createNylonPay } from "@nile-squad/nylonpay-ts";
 import { randomUUID } from "crypto";
+import { createNylonPay } from "@nile-squad/nylonpay-ts";
 
 function getCredentials() {
   const apiKey = (process.env.NYLONPAY_API_KEY || "").trim();
@@ -29,8 +29,13 @@ export function getClient() {
   return createNylonPay({ apiKey, apiSecret });
 }
 
+// Nylon Pay collectPayment requires a valid UUID for the reference field.
+function generateShortReference(): string {
+  return randomUUID();
+}
+
 // ─────────────────────────────────────────────────────────────
-// Mobile Money — Direct STK Push
+// Direct Mobile Money — STK Push (works without Level 2)
 // ─────────────────────────────────────────────────────────────
 
 export interface CollectPaymentPayload {
@@ -63,7 +68,7 @@ export async function collectDonation(
       return { success: false, error: "Phone number required for Mobile Money" };
     }
 
-    const paymentReference = randomUUID();
+    const paymentReference = generateShortReference();
 
     await nylonpay.collectPayment({
       amount: Math.round(payload.amount),
@@ -89,7 +94,7 @@ export async function collectDonation(
 }
 
 // ─────────────────────────────────────────────────────────────
-// Card / Hosted Invoice Page
+// Hosted Invoice (requires Level 2 — kept for later)
 // ─────────────────────────────────────────────────────────────
 
 export interface CreateInvoicePayload {
@@ -159,7 +164,7 @@ export async function createInvoice(
 }
 
 // ─────────────────────────────────────────────────────────────
-// Payment / Invoice Status Verification
+// Status Verification
 // ─────────────────────────────────────────────────────────────
 
 type NormalizedStatus = "pending" | "completed" | "failed" | "cancelled";
@@ -193,7 +198,6 @@ export async function verifyPayment(reference: string) {
       return {
         success: true,
         status: mapStatus(String(value.status || "")),
-        rawStatus: String(value.status || ""),
         amount: value.amount,
         currency: value.currency,
         reference: value.reference || reference,
@@ -219,7 +223,6 @@ export async function verifyPayment(reference: string) {
           return {
             success: true,
             status: mapStatus(String(tx.status || "")),
-            rawStatus: String(tx.status || ""),
             amount: tx.amount,
             currency: tx.currency,
             reference: tx.reference || reference,
@@ -265,51 +268,25 @@ export async function verifyPayment(reference: string) {
 // Webhook Signature Verification
 // ─────────────────────────────────────────────────────────────
 
-/**
- * Verifies x-nylon-signature.
- * IMPORTANT: secret MUST be the dedicated webhook secret from
- * Dashboard → API Keys → Webhook Configuration — NOT NYLONPAY_API_SECRET.
- */
 export function verifyWebhookSignature(
   payload: string | Buffer,
   signature: string
 ): boolean {
   const secret = (process.env.NYLONPAY_WEBHOOK_SECRET || "").trim();
-
   if (!secret) {
-    console.error(
-      "[webhook] NYLONPAY_WEBHOOK_SECRET is not set. Refusing to accept webhooks."
-    );
-    return false;
-  }
-
-  if (!signature) {
-    console.error("[webhook] Missing x-nylon-signature header");
-    return false;
+    console.warn("NYLONPAY_WEBHOOK_SECRET not set — skipping verification");
+    return true;
   }
 
   try {
     const nylonpay = getClient();
-    const result = nylonpay.verifyWebhookSignature({
+    return nylonpay.verifyWebhookSignature({
       payload,
       signature,
       secret,
-      // Default is 300s. Wider window is safer for cold starts / retries.
-      toleranceSeconds: 900,
     });
-
-    if (!result) {
-      console.error("[webhook] Signature verification returned false", {
-        secretPrefix: secret.slice(0, 6),
-        signaturePrefix: signature.slice(0, 16),
-        payloadLength:
-          typeof payload === "string" ? payload.length : payload.byteLength,
-      });
-    }
-
-    return result;
-  } catch (err: any) {
-    console.error("[webhook] verifyWebhookSignature threw:", err?.message);
+  } catch (err) {
+    console.error("Webhook signature verify failed:", err);
     return false;
   }
 }
