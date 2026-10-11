@@ -6,6 +6,7 @@ import {
   Shield,
   AlertCircle,
   Smartphone,
+  CheckCircle2,
 } from "lucide-react";
 import { formatCurrency } from "@/utils/format";
 import { cn } from "@/utils/cn";
@@ -48,8 +49,10 @@ export function DonationForm({
   const [program, setProgram] = useState(defaultProgram || "general");
   const [donorName, setDonorName] = useState("");
   const [donorEmail, setDonorEmail] = useState("");
+  const [donorPhone, setDonorPhone] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [promptSuccess, setPromptSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     if (defaultAmount && defaultAmount > 0) {
@@ -65,6 +68,7 @@ export function DonationForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setPromptSuccess(null);
 
     if (!amount || amount < 1) {
       setError("Please enter a valid amount.");
@@ -72,6 +76,12 @@ export function DonationForm({
     }
     if (!donorEmail || !donorEmail.includes("@")) {
       setError("Please enter a valid email.");
+      return;
+    }
+    if (!donorPhone || donorPhone.replace(/\s/g, "").length < 9) {
+      setError(
+        "Please enter a valid phone number (e.g. +256700000000) for Mobile Money."
+      );
       return;
     }
 
@@ -87,6 +97,7 @@ export function DonationForm({
           program,
           donorName: donorName || "Anonymous",
           donorEmail,
+          donorPhone,
         }),
       });
 
@@ -110,8 +121,12 @@ export function DonationForm({
         throw new Error(errMsg);
       }
 
-      if (data.mode === "link" && data.paymentLink) {
-        window.location.href = data.paymentLink;
+      if (data.mode === "prompt") {
+        setPromptSuccess(
+          data.message ||
+            "A payment prompt has been sent to your phone. Approve it to complete your donation."
+        );
+        setIsSubmitting(false);
         return;
       }
 
@@ -122,6 +137,32 @@ export function DonationForm({
       setIsSubmitting(false);
     }
   };
+
+  if (promptSuccess) {
+    return (
+      <div className="card p-6 md:p-8 text-center">
+        <div className="flex justify-center mb-4">
+          <CheckCircle2 className="w-14 h-14 text-green-600" />
+        </div>
+        <h3 className="text-xl font-bold text-dark mb-2">Check your phone</h3>
+        <p className="text-dark/80 mb-4">{promptSuccess}</p>
+        <p className="text-sm text-dark/50 mb-6">
+          After you approve with your Mobile Money PIN, your donation will be
+          confirmed. You can close this page.
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            setPromptSuccess(null);
+            setIsSubmitting(false);
+          }}
+          className="btn-primary"
+        >
+          Make another donation
+        </button>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="card p-6 md:p-8">
@@ -249,7 +290,7 @@ export function DonationForm({
         </select>
       </div>
 
-      {/* Donor Details — no phone field */}
+      {/* Donor Details */}
       <div className="space-y-4 mb-6">
         <div>
           <label htmlFor="donor-name" className="form-label">
@@ -261,7 +302,7 @@ export function DonationForm({
             value={donorName}
             onChange={(e) => setDonorName(e.target.value)}
             className="form-input"
-            placeholder="Your name"
+            placeholder="John Doe"
           />
         </div>
         <div>
@@ -277,8 +318,22 @@ export function DonationForm({
             className="form-input"
             placeholder="you@example.com"
           />
+        </div>
+        <div>
+          <label htmlFor="donor-phone" className="form-label">
+            Mobile Money Phone Number *
+          </label>
+          <input
+            id="donor-phone"
+            type="tel"
+            required
+            value={donorPhone}
+            onChange={(e) => setDonorPhone(e.target.value)}
+            className="form-input"
+            placeholder="+256 700 000 000"
+          />
           <p className="text-xs text-dark/50 mt-1">
-            We'll send your receipt and payment details here.
+            Use the number registered with MTN or Airtel Money.
           </p>
         </div>
       </div>
@@ -310,7 +365,7 @@ export function DonationForm({
         {isSubmitting ? (
           <>
             <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            Redirecting to secure payment…
+            Sending prompt…
           </>
         ) : (
           <>
