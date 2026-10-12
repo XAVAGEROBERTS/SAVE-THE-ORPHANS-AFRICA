@@ -59,7 +59,7 @@ export function ShareButton({ title, url, description }: ShareButtonProps) {
     } else if (panelRect.height <= spaceAbove) {
       setDirection("up");
     } else {
-      // Doesn't fit either way — pick the side with more room
+      // Doesn't fit either way → pick the side with more room
       setDirection(spaceBelow >= spaceAbove ? "down" : "up");
     }
   }, [open, isMobile]);
@@ -96,7 +96,7 @@ export function ShareButton({ title, url, description }: ShareButtonProps) {
 
   function openShare(platform: string) {
     const shareUrl = resolveUrl();
-    const text = description ? `${title} — ${description}` : title;
+    const text = description ? `${title} → ${description}` : title;
 
     const links: Record<string, string> = {
       facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
@@ -201,7 +201,7 @@ export function ShareButton({ title, url, description }: ShareButtonProps) {
         />
       )}
 
-      {/* Menu — bottom sheet on mobile, flip-aware dropdown on desktop */}
+      {/* Menu → bottom sheet on mobile, flip-aware dropdown on desktop */}
       {open && (
         <div
           ref={panelRef}

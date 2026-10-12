@@ -71,7 +71,7 @@ export function Navbar() {
         </p>
       </div>
 
-      {/* MOBILE — full-width top bar */}
+      {/* MOBILE → full-width top bar */}
       <header
         className={cn(
           "lg:hidden fixed top-[42px] left-0 right-0 z-50 bg-white border-b border-black/5 shadow-sm transition-transform duration-300",
@@ -111,7 +111,7 @@ export function Navbar() {
         </div>
       </header>
 
-      {/* DESKTOP — floating pill */}
+      {/* DESKTOP → floating pill */}
       <header
         className={cn(
           "hidden lg:flex fixed top-8 left-0 right-0 z-50 px-4 justify-center pointer-events-none",

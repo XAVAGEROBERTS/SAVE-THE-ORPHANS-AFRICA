@@ -33,9 +33,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const url = `${SITE_URL}/stories/${story.slug}`;
   const description =
     story.excerpt?.trim() ||
-    `${story.title} — a story from ${SITE_NAME}.`;
+    `${story.title} → a story from ${SITE_NAME}.`;
 
-  // Only pass through a valid image URL — otherwise OG previews break
+  // Only pass through a valid image URL → otherwise OG previews break
   const ogImage = story.image
     ? story.image.startsWith("http")
       ? story.image

@@ -50,7 +50,7 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: `${SITE_NAME} — Give a child a home`,
+        alt: `${SITE_NAME} → Give a child a home`,
       },
     ],
   },
@@ -63,7 +63,7 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
-// Structured data for the homepage — FAQ only.
+// Structured data for the homepage → FAQ only.
 // The NGO/Organization schema is declared ONCE in the root layout and
 // referenced here by @id. Do not redeclare it on any page.
 const homeSchema = {
@@ -275,7 +275,7 @@ export default async function HomePage() {
                 icon: Heart,
                 title: "Donate",
                 description:
-                  "Your gift provides essential support—food, education, healthcare, and shelter.",
+                  "Your gift provides essential support→food, education, healthcare, and shelter.",
                 href: "/donate",
                 cta: "Donate Now",
               },

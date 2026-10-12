@@ -34,7 +34,7 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: `Sponsor a Child — ${SITE_NAME}`,
+        alt: `Sponsor a Child → ${SITE_NAME}`,
       },
     ],
   },
@@ -93,7 +93,7 @@ const categories = [
 ];
 
 // Structured data: ItemList of sponsorship offers + BreadcrumbList.
-// Each offer points to /donate with preset params — that page has its own
+// Each offer points to /donate with preset params → that page has its own
 // DonateAction schema, so we don't duplicate it here.
 const sponsorSchema = {
   "@context": "https://schema.org",

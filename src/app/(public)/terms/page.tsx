@@ -41,8 +41,8 @@ export default function TermsPage() {
 
       <h2>4. Intellectual Property</h2>
       <p>
-        All content on this website — including text, images, logos, and code
-        — is the property of Save the Orphans Africa or its licensors and is
+        All content on this website → including text, images, logos, and code
+        → is the property of Save the Orphans Africa or its licensors and is
         protected by copyright laws. You may not copy, reproduce, or
         redistribute any content without written permission.
       </p>

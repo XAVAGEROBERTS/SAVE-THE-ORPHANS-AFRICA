@@ -71,7 +71,7 @@ export function ContactForm() {
           data: {
             name: data.fullName,
             email: data.email,
-            phone: data.phone || "—",
+            phone: data.phone || "→",
             subject: data.subject,
             message: data.message,
           },

@@ -72,7 +72,7 @@ export function NewsletterForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: "subscriber",
-          data: { email: cleanEmail, name: cleanName || "—" },
+          data: { email: cleanEmail, name: cleanName || "→" },
         }),
       }).catch(() => {});
 

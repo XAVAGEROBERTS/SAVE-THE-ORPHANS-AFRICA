@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     url: `${SITE_URL}/donate`,
     title: "Donate | Save the Orphans Africa",
     description:
-      "Every donation feeds, shelters, and educates an orphaned child. Give once or monthly — 85% goes directly to programs.",
+      "Every donation feeds, shelters, and educates an orphaned child. Give once or monthly → 85% goes directly to programs.",
     images: [
       {
         url: "/og-image.png",
@@ -93,7 +93,7 @@ export default async function DonatePage({ searchParams }: Props) {
                     </h3>
                     <p className="text-sm text-dark/70">
                       Monthly sponsorship of{" "}
-                      <span className="font-bold text-primary">${amount}</span> —
+                      <span className="font-bold text-primary">${amount}</span> →
                       your commitment provides ongoing support for this cause.
                     </p>
                   </div>
