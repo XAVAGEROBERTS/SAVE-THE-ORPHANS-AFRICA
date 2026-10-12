@@ -17,7 +17,10 @@ interface StoryCardProps {
 
 export function StoryCard({ story }: StoryCardProps) {
   return (
-    <article className="card group h-full flex flex-col">
+    <Link
+      href={`/stories/${story.slug}`}
+      className="card group h-full flex flex-col transition-shadow hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+    >
       <div className="relative h-48 overflow-hidden bg-light">
         {story.image ? (
           <Image
@@ -42,18 +45,17 @@ export function StoryCard({ story }: StoryCardProps) {
           <Calendar className="w-3.5 h-3.5" />
           <time dateTime={story.date}>{formatDate(story.date)}</time>
         </div>
-        <h3 className="font-bold text-lg text-dark mb-3 line-clamp-2">{story.title}</h3>
+        <h3 className="font-bold text-lg text-dark mb-3 line-clamp-2">
+          {story.title}
+        </h3>
         <p className="text-dark/70 text-sm leading-relaxed mb-4 flex-1 line-clamp-3">
           {story.excerpt}
         </p>
-        <Link
-          href={`/stories/${story.slug}`}
-          className="inline-flex items-center gap-1 text-primary font-semibold text-sm hover:gap-2 transition-all"
-        >
+        <span className="inline-flex items-center gap-1 text-primary font-semibold text-sm group-hover:gap-2 transition-all">
           Read More
           <ArrowRight className="w-4 h-4" />
-        </Link>
+        </span>
       </div>
-    </article>
+    </Link>
   );
 }
