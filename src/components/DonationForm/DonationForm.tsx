@@ -15,13 +15,13 @@ const presetAmounts = [25, 50, 100, 250];
 
 const donationDestinations = [
   { id: "general", title: "General Fund (Where it's needed most)" },
-  { id: "education", title: "Education — School fees, uniforms, books" },
-  { id: "healthcare", title: "Healthcare — Medical checkups, medication" },
-  { id: "nutrition", title: "Food & Nutrition — Daily nutritious meals" },
-  { id: "child-protection", title: "Accommodation — Safe housing & utilities" },
-  { id: "school-supplies", title: "School Supplies — Notebooks, pens, bags" },
-  { id: "general-care", title: "General Care — Clothing & essentials" },
-  { id: "skills-development", title: "Skills Development — Vocational training" },
+  { id: "education", title: "Education → School fees, uniforms, books" },
+  { id: "healthcare", title: "Healthcare → Medical checkups, medication" },
+  { id: "nutrition", title: "Food & Nutrition → Daily nutritious meals" },
+  { id: "child-protection", title: "Accommodation → Safe housing & utilities" },
+  { id: "school-supplies", title: "School Supplies → Notebooks, pens, bags" },
+  { id: "general-care", title: "General Care → Clothing & essentials" },
+  { id: "skills-development", title: "Skills Development → Vocational training" },
 ];
 
 interface Props {
@@ -302,7 +302,7 @@ export function DonationForm({
             value={donorName}
             onChange={(e) => setDonorName(e.target.value)}
             className="form-input"
-            placeholder="John Doe"
+            placeholder="e.g. Robert"
           />
         </div>
         <div>
