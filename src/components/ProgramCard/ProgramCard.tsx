@@ -21,7 +21,10 @@ export function ProgramCard({ program }: ProgramCardProps) {
   const firstStat = program.impactStats?.[0];
 
   return (
-    <article className="card group h-full flex flex-col">
+    <Link
+      href={`/programs/${program.slug}`}
+      className="card group h-full flex flex-col transition-shadow hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+    >
       <div className="relative h-48 overflow-hidden bg-light">
         {program.image ? (
           <Image
@@ -37,7 +40,10 @@ export function ProgramCard({ program }: ProgramCardProps) {
             className="w-full h-full flex items-center justify-center"
             style={{ background: `${program.color}20` }}
           >
-            <IconComponent className="w-16 h-16" style={{ color: program.color }} />
+            <IconComponent
+              className="w-16 h-16"
+              style={{ color: program.color }}
+            />
           </div>
         )}
       </div>
@@ -53,15 +59,12 @@ export function ProgramCard({ program }: ProgramCardProps) {
               <span className="text-dark/60">{firstStat.label}</span>
             </div>
           )}
-          <Link
-            href={`/programs/${program.slug}`}
-            className="inline-flex items-center gap-1 text-primary font-semibold text-sm hover:gap-2 transition-all ml-auto"
-          >
+          <span className="inline-flex items-center gap-1 text-primary font-semibold text-sm group-hover:gap-2 transition-all ml-auto">
             Learn More
             <ArrowRight className="w-4 h-4" />
-          </Link>
+          </span>
         </div>
       </div>
-    </article>
+    </Link>
   );
 }
